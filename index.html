@@ -157,10 +157,10 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
     </select></label>
     <label>Data<input type="date" id="f_date" required></label>
     <label>Konto / broker<input id="f_account" list="acctList" placeholder="np. mBank"></label>
-    <label data-for="trade income">Ticker<input id="f_ticker" list="tickerList" placeholder="np. AAPL" autocapitalize="characters"></label>
+    <label data-for="trade income adjust">Ticker<input id="f_ticker" list="tickerList" placeholder="np. AAPL" autocapitalize="characters"></label>
     <label data-for="trade">Nazwa<input id="f_name" placeholder="opcjonalnie"></label>
     <label>Waluta<select id="f_ccy"></select></label>
-    <label data-for="trade">Jednostki<input id="f_qty" inputmode="decimal"></label>
+    <label data-for="trade adjust">Jednostki (korekta: ze znakiem)<input id="f_qty" inputmode="decimal"></label>
     <label data-for="trade">Cena<input id="f_price" inputmode="decimal"></label>
     <label data-for="trade">Prowizja<input id="f_fee" inputmode="decimal" placeholder="0"></label>
     <label data-for="cash income fx">Kwota<input id="f_amount" inputmode="decimal"></label>
@@ -182,7 +182,7 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
 <script>
 (() => {
 const CCYS = ["PLN","USD","EUR","GBP","CHF"];
-const TYPE_LABEL = {buy:"Kupno",sell:"Sprzedaż",deposit:"Wpłata",withdrawal:"Wypłata",dividend:"Dywidenda",interest:"Odsetki",fee:"Opłata",fx:"Wymiana"};
+const TYPE_LABEL = {buy:"Kupno",sell:"Sprzedaż",deposit:"Wpłata",withdrawal:"Wypłata",dividend:"Dywidenda",interest:"Odsetki",fee:"Opłata",fx:"Wymiana",adjust:"Korekta ilości"};
 const PALETTE = ["#0d6b57","#3a7bd5","#c46b2d","#8a5cc2","#c23b6b","#2a9d8f","#b8952a","#5c6f8a","#d4573b","#4f9a3a"];
 const fmt = (n, d=2) => (isFinite(n)?n:0).toLocaleString("pl-PL",{minimumFractionDigits:d,maximumFractionDigits:d});
 const money = (n, c="PLN") => fmt(n) + " " + c;
@@ -247,6 +247,10 @@ function compute(list){
       case "fee": addCash(t.ccy, -amt); feesPLN += amt*fx; break;
       case "dividend": case "interest": addCash(t.ccy, amt-tax); incomePLN += (amt-tax)*fx; break;
       case "fx": addCash(t.ccy, -amt); addCash(t.toCcy, num(t.toAmount)); break;
+      case "adjust": {
+        const k = t.ticker.toUpperCase();
+        const p = pos[k] ||= {ticker:k, name:t.name||k, ccy:t.ccy, units:0, costCcy:0, costPLN:0, income:0};
+        p.units += qty; if (p.units<1e-9){p.units=0;p.costCcy=0;p.costPLN=0;} break; }
       case "buy": {
         const k = t.ticker.toUpperCase();
         const p = pos[k] ||= {ticker:k, name:t.name||k, ccy:t.ccy, units:0, costCcy:0, costPLN:0, income:0};
@@ -385,12 +389,12 @@ function txTable(list, actions=true){
   if (!list.length) return `<p class="note">Brak transakcji.</p>`;
   return `<table><thead><tr><th>Data</th><th>Typ</th><th>Instrument</th><th class="hide-sm">Konto</th><th class="r hide-sm">Jedn.</th><th class="r hide-sm">Cena</th><th class="r">Kwota</th>${actions?"<th></th>":""}</tr></thead><tbody>
   ${list.map(t=>{ const q=num(t.qty), p=num(t.price), f=num(t.fee);
-    let amount = t.type==="buy"? -(q*p+f) : t.type==="sell"? q*p-f : ["withdrawal","fee"].includes(t.type)? -num(t.amount) : t.type==="fx"? -num(t.amount) : num(t.amount)-num(t.tax);
+    let amount = t.type==="adjust"? 0 : t.type==="buy"? -(q*p+f) : t.type==="sell"? q*p-f : ["withdrawal","fee"].includes(t.type)? -num(t.amount) : t.type==="fx"? -num(t.amount) : num(t.amount)-num(t.tax);
     const cls = t.type==="buy"?"buy":t.type==="sell"?"sell":["deposit","dividend","interest"].includes(t.type)?"in":"";
     return `<tr><td class="num">${t.date}</td><td><span class="pill ${cls}">${TYPE_LABEL[t.type]}</span></td>
     <td>${t.ticker?`<span class="tk">${esc(t.ticker.toUpperCase())}</span>${q?`<span class="sub num">${fmt(q,q%1?4:0)} × ${fmt(p)}</span>`:""}`:t.type==="fx"?`${t.ccy} → ${t.toCcy} <span class="num">${fmt(num(t.toAmount))}</span>`:""}${t.note?`<span class="sub">${esc(t.note)}</span>`:""}</td>
     <td class="hide-sm">${esc(t.account||"")}</td><td class="r num hide-sm">${q?fmt(q,q%1?4:0):""}</td><td class="r num hide-sm">${p?fmt(p):""}</td>
-    <td class="r num ${amount>=0?"pos":"neg"}">${amount>=0?"+":""}${money(amount,t.ccy)}</td>
+    <td class="r num ${t.type==="adjust"?"":amount>=0?"pos":"neg"}">${t.type==="adjust"?`${q>0?"+":""}${fmt(q,4)} szt.`:(amount>=0?"+":"")+money(amount,t.ccy)}</td>
     ${actions?`<td class="r"><button class="btn ghost" data-edit="${t.id}">Edytuj</button><button class="btn ghost danger" data-del="${t.id}">Usuń</button></td>`:""}</tr>`;}).join("")}
   </tbody></table>`;
 }
@@ -451,8 +455,8 @@ function settingsView(){
     <p class="note">Kurs średni do PLN używany do wyceny bieżącej. Przy transakcjach w walucie wpisz kurs z dnia transakcji, wtedy koszt w PLN jest dokładny (np. średni NBP).</p>
     <div class="row">${CCYS.filter(c=>c!=="PLN").map(c=>`<label class="row note" for="fx_${c}">${c}/PLN <input class="cell-in" id="fx_${c}" data-fxrate="${c}" value="${fmt(num(settings.fxRates[c]),4)}" style="width:90px"></label>`).join("")}</div></section>
   <section class="panel"><h2>Import z pliku</h2>
-    <p class="note">Wczytaj eksport od brokera albo własny arkusz: CSV, XLS, XLSX lub ODS. Możesz też skopiować komórki w Excelu i wkleić je niżej. Kolumny dopasuję sam, a ty poprawisz, co trzeba. Ustawienia kolumn zapamiętuję dla plików o tych samych nagłówkach.</p>
-    <div class="row"><input type="file" id="impFile" accept=".csv,.txt,.xls,.xlsx,.xlsm,.ods,text/csv"><button class="btn" data-act="export">Eksportuj CSV</button></div>
+    <p class="note">Wczytaj eksport od brokera albo własny arkusz: CSV, XLS, XLSX lub ODS. Raporty XTB (eksport historii konta, także kilka plików naraz, np. zwykłe konto i IKE) rozpoznaję automatycznie. Możesz też skopiować komórki w Excelu i wkleić je niżej. Kolumny dopasuję sam, a ty poprawisz, co trzeba. Ustawienia kolumn zapamiętuję dla plików o tych samych nagłówkach.</p>
+    <div class="row"><input type="file" id="impFile" multiple accept=".csv,.txt,.xls,.xlsx,.xlsm,.ods,text/csv"><button class="btn" data-act="export">Eksportuj CSV</button></div>
     <textarea id="csvText" rows="4" placeholder="albo wklej tu komórki z Excela / tekst CSV" style="width:100%"></textarea>
     <div class="row"><button class="btn" data-act="pasteImport">Wczytaj wklejone</button><span class="note" id="importInfo"></span></div></section>
   ${impView()}
@@ -468,7 +472,7 @@ $("f_toCcy").value = "USD";
 function syncForm(){
   const ty = $("f_type").value;
   $("typeChips").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.type===ty));
-  const group = ["buy","sell"].includes(ty)?"trade":["dividend","interest"].includes(ty)?"income":ty==="fx"?"fx":"cash";
+  const group = ["buy","sell"].includes(ty)?"trade":ty==="adjust"?"adjust":["dividend","interest"].includes(ty)?"income":ty==="fx"?"fx":"cash";
   dlg.querySelectorAll("label[data-for]").forEach(l => l.hidden = !l.dataset.for.split(" ").includes(group));
   $("f_fx").closest("label").hidden = $("f_ccy").value==="PLN";
   const q=num($("f_qty").value), p=num($("f_price").value), f=num($("f_fee").value);
@@ -498,7 +502,7 @@ $("txForm").addEventListener("submit", async e => {
     ticker:$("f_ticker").value.trim().toUpperCase(), name:$("f_name").value.trim(),
     qty:num($("f_qty").value), price:num($("f_price").value), fee:num($("f_fee").value), amount:num($("f_amount").value),
     tax:num($("f_tax").value), fx:$("f_ccy").value==="PLN"?1:num($("f_fx").value), toCcy:$("f_toCcy").value, toAmount:num($("f_toAmount").value), note:$("f_note").value.trim()};
-  const msg = !t.date?"Podaj datę." : ["buy","sell"].includes(ty)&&(!t.ticker||!t.qty||!t.price)?"Kupno i sprzedaż wymagają tickera, jednostek i ceny."
+  const msg = !t.date?"Podaj datę." : ty==="adjust"&&(!t.ticker||!t.qty)?"Korekta wymaga tickera i liczby jednostek (ujemnej, by zmniejszyć)." : ["buy","sell"].includes(ty)&&(!t.ticker||!t.qty||!t.price)?"Kupno i sprzedaż wymagają tickera, jednostek i ceny."
     : ["deposit","withdrawal","fee","dividend","interest"].includes(ty)&&!t.amount?"Podaj kwotę." : ty==="fx"&&(!t.amount||!t.toAmount||t.ccy===t.toCcy)?"Wymiana wymaga dwóch różnych walut i obu kwot." : "";
   if (msg){ err.textContent=msg; err.hidden=false; return; }
   if (!t.fx && t.ccy!=="PLN") t.fx = num(settings.fxRates[t.ccy]);
@@ -576,6 +580,113 @@ async function loadXLSX(){
   await new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload=res; sc.onerror=()=>rej(new Error("nie udało się wczytać czytnika Excela")); document.head.appendChild(sc); });
   return window.XLSX;
 }
+/* ---------- XTB: eksport historii konta (Cash Operations + Open Positions) ---------- */
+const XTB_RX = /(OPEN|CLOSE)\s+(BUY|SELL)\s+(?:(\S+)\s+)?([\d.]+)(?:\/[\d.]+)?\s+@\s+([\d.]+)/;
+function xtbTime(v){
+  if (typeof v==="number") return Math.round((v-25569)*864e5);
+  const ms = Date.parse(String(v||"").trim().replace(" ","T")+"Z"); return isFinite(ms)?ms:0;
+}
+function isXtb(sheets){
+  const co = sheets["Cash Operations"]; if (!co) return false;
+  return co.slice(0,15).some(r=>r.map(String).includes("Type") && r.map(String).includes("Comment") && r.map(String).includes("Amount"));
+}
+const XTB_PRODUCT = p => p==="My Trades" ? "XTB" : p==="Investment Plans"||p==="Investment Plan" ? "XTB Plany" : p ? "XTB "+p : "XTB";
+function parseXtb(name, sheets){
+  const out = {name, txs:[], skipped:[], openPos:new Map(), reportDate:"", acctNo:"", total:0};
+  const co = sheets["Cash Operations"];
+  out.acctNo = String((co.find(r=>String(r[0])==="Account number")||[])[1]||"");
+  const hi = co.findIndex(r=>r.map(String).includes("Type") && r.map(String).includes("Amount"));
+  const H = co[hi].map(String), ix = k => H.indexOf(k);
+  const iT=ix("Type"), iI=ix("Instrument"), iK=ix("Ticker"), iTm=ix("Time"), iA=ix("Amount"), iID=ix("ID"), iC=ix("Comment"), iP=ix("Product");
+  co.slice(hi+1).forEach((r,n)=>{
+    const type=String(r[iT]||"").trim(); if (!type) return;
+    if (type==="Total"){ out.total += pnum(r[iA]); return; }
+    const amt=pnum(r[iA]), ms=xtbTime(r[iTm]), date=ms?new Date(ms).toISOString().slice(0,10):"";
+    const base={id:"xtb_"+(r[iID]||out.acctNo+"_"+n), created:ms||Date.now()+n, date, account:XTB_PRODUCT(String(r[iP]||"")), ccy:"PLN", fx:1,
+      ticker:String(r[iK]||"").trim().toUpperCase(), name:String(r[iI]||"").trim(), qty:0, price:0, fee:0, amount:0, tax:0, toCcy:"", toAmount:0, note:String(r[iC]||"").trim()};
+    const lt=type.toLowerCase();
+    if (lt==="stock purchase" || lt==="stock sell" || lt==="stock sale"){
+      const m=XTB_RX.exec(base.note); const q=m?parseFloat(m[4]):0;
+      if (!q){ out.skipped.push(`${date} ${type}: nie rozpoznano ilości w „${base.note}”`); return; }
+      out.txs.push({...base, type: lt==="stock purchase"?"buy":"sell", qty:q, price:Math.abs(amt)/q});
+    } else if (lt==="dividend"){
+      out.txs.push({...base, type: amt>=0?"dividend":"fee", amount:Math.abs(amt)});
+    } else if (lt.includes("interest") && !lt.includes("tax")){
+      out.txs.push({...base, type: amt>=0?"interest":"fee", amount:Math.abs(amt), ticker:""});
+    } else if (lt.includes("tax") || lt.includes("commission") || lt.includes("fee") || lt.includes("swap")){
+      out.txs.push({...base, type: amt<=0?"fee":"interest", amount:Math.abs(amt), note:base.note||type});
+    } else if (lt.includes("deposit") || lt.includes("withdraw") || lt.includes("transfer")){
+      if (amt) out.txs.push({...base, type: amt>0?"deposit":"withdrawal", amount:Math.abs(amt), ticker:"", note:base.note||type});
+    } else out.skipped.push(`${date} ${type} (${fmt(amt)} PLN): nieznany typ operacji`);
+  });
+  const op = sheets["Open Positions"];
+  if (op){
+    const rd = op.find(r=>String(r[0]).startsWith("Data as of")); if (rd){ const ms=xtbTime(rd[1]); out.reportDate = ms?new Date(ms).toISOString().slice(0,10):""; }
+    const h2 = op.findIndex(r=>r.map(String).includes("Instrument/Position"));
+    if (h2>-1){ const H2=op[h2].map(String), j=k=>H2.indexOf(k);
+      op.slice(h2+1).forEach(r=>{ const prod=String(r[j("Product")]||""), tk=String(r[j("Ticker")]||"").trim().toUpperCase();
+        if (!prod || !tk || String(r[j("Type")]||"").trim()) return;
+        const key=prod+"|"+tk, prev=out.openPos.get(key)||{ticker:tk, volume:0, value:0};
+        out.openPos.set(key, {ticker:tk, volume:prev.volume+pnum(r[j("Volume")]), value:prev.value+pnum(r[j("Value")])}); }); }
+  }
+  return out;
+}
+function buildXtbImport(parsed){
+  const txsAll = parsed.flatMap(p=>p.txs), skipped = parsed.flatMap(p=>p.skipped);
+  const open = new Map(); parsed.forEach(p=>p.openPos.forEach((v,k)=>open.set(k,v)));
+  const byTk = {}; open.forEach(v=>{ const o=byTk[v.ticker] ||= {volume:0,value:0}; o.volume+=v.volume; o.value+=v.value; });
+  const units = {}, lastAcct = {}, lastName = {};
+  [...txsAll].sort((a,b)=>a.created-b.created).forEach(t=>{ if(t.type==="buy"||t.type==="sell"){ units[t.ticker]=(units[t.ticker]||0)+(t.type==="buy"?t.qty:-t.qty); lastAcct[t.ticker]=t.account; lastName[t.ticker]=t.name; } });
+  const reportDate = parsed.map(p=>p.reportDate).filter(Boolean).sort().pop() || today();
+  const acctNo = parsed.map(p=>p.acctNo).filter(Boolean)[0] || "";
+  const adjust = [];
+  new Set([...Object.keys(units), ...Object.keys(byTk)]).forEach(tk=>{
+    const have = units[tk]||0, want = byTk[tk]?.volume||0, d = +(want-have).toFixed(6);
+    if (Math.abs(d) > 1e-4 && (byTk[tk] || have>1e-4)) adjust.push({id:`xtb_adj_${acctNo}_${tk}`, created:Date.parse(reportDate+"T23:59:00Z"), type:"adjust", date:reportDate,
+      account:lastAcct[tk]||"XTB", ticker:tk, name:lastName[tk]||tk, ccy:"PLN", fx:1, qty:d, price:0, fee:0, amount:0, tax:0, toCcy:"", toAmount:0,
+      note:`Wyrównanie do raportu XTB z ${reportDate} (np. split): ${fmt(have,4)} → ${fmt(want,4)} szt.`});
+  });
+  const prices = {}; Object.entries(byTk).forEach(([tk,o])=>{ if (o.volume>0) prices[tk]={price:o.value/o.volume, date:reportDate}; });
+  const cashCalc = {}; txsAll.forEach(t=>{ const v = t.type==="buy"?-(t.qty*t.price):t.type==="sell"?t.qty*t.price:["deposit","dividend","interest"].includes(t.type)?t.amount:["withdrawal","fee"].includes(t.type)?-t.amount:0; cashCalc[t.account]=(cashCalc[t.account]||0)+v; });
+  return {xtb:true, name:parsed.map(p=>p.name).join(", "), txs:[...txsAll, ...adjust], adjust, skipped, prices, reportDate,
+    matched: Object.keys(byTk).length - adjust.filter(a=>byTk[a.ticker]).length, openCount:Object.keys(byTk).length,
+    cashCalc, cashReport: parsed.reduce((x,p)=>x+p.total,0)};
+}
+function xtbView(){
+  const x=imp, by={}; x.txs.forEach(t=>by[t.type]=(by[t.type]||0)+1);
+  const accts=[...new Set(x.txs.map(t=>t.account))];
+  const cashSum=Object.values(x.cashCalc).reduce((a,b)=>a+b,0), cashOk=Math.abs(cashSum-x.cashReport)<0.05;
+  const existing=new Set(txs.map(t=>t.id)), fresh=x.txs.filter(t=>!existing.has(t.id)).length;
+  return `<section class="panel" id="impPanel"><div class="panel-h"><h2>Import z XTB</h2><span class="note">${esc(x.name)}</span><span class="spacer"></span><button class="btn ghost" data-act="impCancel">Anuluj</button></div>
+    <div class="kpis">
+      <div class="kpi"><span class="eyebrow">Operacje</span><span class="v">${x.txs.length-x.adjust.length}</span><span class="s">${Object.entries(by).filter(([k])=>k!=="adjust").map(([k,v])=>`${TYPE_LABEL[k]} ${v}`).join(" · ")}</span></div>
+      <div class="kpi"><span class="eyebrow">Konta</span><span class="v" style="font-size:16px">${accts.map(esc).join(", ")}</span><span class="s">operacje w PLN, po kursie z dnia transakcji</span></div>
+      <div class="kpi"><span class="eyebrow">Zgodność pozycji</span><span class="v">${x.matched}/${x.openCount}</span><span class="s">${x.adjust.length?`${x.adjust.length} korekt ilości (${x.adjust.map(a=>esc(a.ticker)).join(", ")})`:"ilości zgodne z raportem"}</span></div>
+      <div class="kpi"><span class="eyebrow">Gotówka</span><span class="v ${cashOk?"pos":"neg"}">${money(cashSum)}</span><span class="s">${cashOk?"zgodna z raportem XTB":`raport XTB: ${money(x.cashReport)}`}</span></div>
+    </div>
+    <p class="note">Bieżące kursy ${Object.keys(x.prices).length} pozycji wezmę z raportu z ${esc(x.reportDate)} (wycena w PLN). Ponowny import tego samego lub nowszego raportu nie zdubluje operacji: ${fresh===x.txs.length?"wszystkie są nowe":`${fresh} nowych, reszta zostanie nadpisana`}.</p>
+    ${x.adjust.length?`<p class="note">Korekta ilości wyrównuje pozycje, które zmieniły się bez operacji gotówkowej, najczęściej przez split. Koszt zakupu zostaje bez zmian.</p>`:""}
+    ${x.skipped.length?`<details><summary class="note">Pominięte (${x.skipped.length})</summary><p class="note">${esc(x.skipped.slice(0,40).join("; "))}</p></details>`:""}
+    <div class="tbl-wrap">${txTable([...x.txs].sort((a,b)=>b.created-a.created).slice(0,8),false)}</div>
+    <div class="row"><button class="btn primary" data-act="impGo">Importuj ${x.txs.length} operacji</button></div></section>`;
+}
+async function readImportFiles(files){
+  const info=$("importInfo"); if (info) info.textContent="Czytam pliki…";
+  const all=[];
+  for (const f of files) all.push({name:f.name, sheets:await readSheets(f)});
+  const xtb=all.filter(a=>isXtb(a.sheets));
+  if (xtb.length){ imp = buildXtbImport(xtb.map(a=>parseXtb(a.name,a.sheets))); tab="settings"; render();
+    if (xtb.length<all.length) toast("Pominięto pliki spoza XTB. Wczytaj je osobno."); return; }
+  startImport(all[0].name, all[0].sheets);
+}
+async function readSheets(file){
+  const ext=(file.name.split(".").pop()||"").toLowerCase(), sheets={};
+  if (["xls","xlsx","xlsm","ods"].includes(ext)){
+    const X=await loadXLSX(); const wb=X.read(await file.arrayBuffer(),{type:"array"});
+    for (const n of wb.SheetNames) sheets[n]=X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""});
+  } else sheets[file.name]=csvRows(await file.text());
+  return sheets;
+}
 async function readImportFile(file){
   const info=$("importInfo"); if (info) info.textContent="Czytam plik…";
   const ext=(file.name.split(".").pop()||"").toLowerCase(), sheets={};
@@ -637,6 +748,7 @@ function impBuild(){
 }
 function impView(){
   if (!imp) return "";
+  if (imp.xtb) return xtbView();
   const hs=impHeaders(), built=impBuild(), ok=built.filter(x=>!x.err), bad=built.filter(x=>x.err);
   const sel=f=>`<select data-map="${f}"><option value="">—</option>${hs.map((h,i)=>`<option value="${i}" ${imp.map[f]===i?"selected":""}>${esc(h)}</option>`).join("")}</select>`;
   const sheets=Object.keys(imp.sheets);
@@ -644,7 +756,7 @@ function impView(){
     <div class="form">
       ${sheets.length>1?`<label>Arkusz<select data-imp="sheet">${sheets.map(n=>`<option ${n===imp.sheet?"selected":""}>${esc(n)}</option>`).join("")}</select></label>`:""}
       <label>Wiersz nagłówka<input data-imp="headerRow" inputmode="numeric" value="${imp.headerRow+1}"></label>
-      <label>Typ, gdy brak w pliku<select data-imp="type"><option value="">—</option>${Object.entries(TYPE_LABEL).filter(([k])=>k!=="fx").map(([k,v])=>`<option value="${k}" ${imp.defaults.type===k?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label>Typ, gdy brak w pliku<select data-imp="type"><option value="">—</option>${Object.entries(TYPE_LABEL).filter(([k])=>k!=="fx"&&k!=="adjust").map(([k,v])=>`<option value="${k}" ${imp.defaults.type===k?"selected":""}>${v}</option>`).join("")}</select></label>
       <label>Waluta, gdy brak w pliku<select data-imp="ccy">${CCYS.map(c=>`<option ${imp.defaults.ccy===c?"selected":""}>${c}</option>`).join("")}</select></label>
       <label>Konto, gdy brak w pliku<input data-imp="account" list="acctList" value="${esc(imp.defaults.account)}" placeholder="np. mBank"></label>
     </div>
@@ -655,12 +767,14 @@ function impView(){
     <div class="row"><button class="btn primary" data-act="impGo" ${ok.length?"":"disabled"}>Importuj ${ok.length} transakcji</button></div></section>`;
 }
 async function impGo(){
+  if (imp.xtb){ const x=imp; imp=null; Object.assign(settings.prices, x.prices); store.saveSettings();
+    await putMany(x.txs); tab="overview"; render(); toast(`Zaimportowano ${x.txs.length} operacji z XTB`); return; }
   const ok=impBuild().filter(x=>!x.err).map(x=>x.t);
   lsSet("kp-map:"+impHeaders().join("|"), {map:imp.map, defaults:{type:imp.defaults.type, ccy:imp.defaults.ccy, account:imp.defaults.account}});
   imp=null; await putMany(ok); tab="txs"; render(); toast(`Zaimportowano ${ok.length} transakcji`);
 }
 async function putMany(list){
-  if (store===Local){ txs.push(...list); lsSave(); render(); return; }
+  if (store===Local){ const byId=new Map(txs.map(t=>[t.id,t])); list.forEach(t=>byId.set(t.id,t)); txs=[...byId.values()]; lsSave(); render(); return; }
   for (let i=0;i<list.length;i+=8) await Promise.all(list.slice(i,i+8).map(t=>store.putTx(t)));
 }
 async function doExport(){
@@ -726,7 +840,7 @@ app.addEventListener("click", async e=>{
 app.addEventListener("change", e=>{
   if (!store) return;
   const el=e.target;
-  if (el.id==="impFile" && el.files[0]){ readImportFile(el.files[0]).catch(err=>toast("Nie udało się odczytać pliku: "+(err.message||err))); return; }
+  if (el.id==="impFile" && el.files.length){ readImportFiles([...el.files]).catch(err=>toast("Nie udało się odczytać pliku: "+(err.message||err))); return; }
   if (el.dataset.map!==undefined && imp){ imp.map[el.dataset.map] = el.value==="" ? undefined : +el.value; render(); return; }
   if (el.dataset.imp && imp){ const k=el.dataset.imp;
     if (k==="sheet"){ imp.sheet=el.value; imp.headerRow=guessHeader(imp.sheets[imp.sheet]); autoMap(); }
