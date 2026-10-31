@@ -90,7 +90,33 @@ dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surf
 dialog::backdrop{background:rgba(5,15,13,.5)}
 .health{display:flex;align-items:center;gap:12px}
 .ring{width:54px;height:54px}
-@media (max-width:560px){.kpi .v{font-size:18px}.dev{width:90px}}
+.dot-ok{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px}
+.dot-off{background:var(--warn)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 13px var(--body);padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.wbar{display:block;height:4px;border-radius:2px;background:var(--sunk);margin-top:4px;overflow:hidden}
+.wbar i{display:block;height:100%;background:var(--accent)}
+.split{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--sunk)}
+.split .a{background:var(--accent)}.split .b{background:var(--good);opacity:.55}
+.split-legend{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.fab{display:none}
+.toast{display:flex;align-items:center;gap:12px}
+.toast button{background:none;border:0;color:var(--bg);font:600 14px var(--body);text-decoration:underline;cursor:pointer;padding:0}
+.calc{display:grid;gap:10px;background:var(--sunk);border-radius:8px;padding:14px}
+.form .full{grid-column:1/-1}
+.mono-in{font-family:var(--mono)}
+@media (max-width:720px){
+  .hide-sm{display:none}
+  .bar{gap:10px}
+  .bar #addTxBtn{display:none}
+  .fab{display:flex;align-items:center;justify-content:center;position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);font:500 28px var(--body);box-shadow:0 6px 18px rgba(0,0,0,.25);z-index:15;cursor:pointer}
+  main{padding-bottom:96px}
+  .kpi .v{font-size:18px}.dev{width:90px}
+  dialog{margin:auto 0 0;width:100vw;max-width:100vw;max-height:92vh;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+  .form{grid-template-columns:1fr 1fr}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -99,7 +125,7 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
   <div class="wrap">
     <div class="bar">
       <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor"/></svg>Kompas Portfela</div>
-      <span class="store" id="storeInfo">łączenie…</span>
+      <span class="store" id="storeInfo"><span class="dot-ok dot-off"></span>łączenie…</span>
       <span class="spacer"></span>
       <label class="row note" for="acctFilter">Konto
         <select id="acctFilter"><option value="">Wszystkie</option></select>
@@ -117,11 +143,13 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
 </header>
 
 <main class="wrap" id="app"></main>
+<button class="fab" id="fab" aria-label="Dodaj transakcję">+</button>
 
 <dialog id="txDlg">
   <form id="txForm" method="dialog" class="form">
     <h2 class="wide" id="txTitle">Dodaj transakcję</h2>
-    <label>Typ<select id="f_type">
+    <div class="wide chips" id="typeChips" role="group" aria-label="Typ transakcji"></div>
+    <label hidden>Typ<select id="f_type">
       <option value="buy">Kupno</option><option value="sell">Sprzedaż</option>
       <option value="deposit">Wpłata</option><option value="withdrawal">Wypłata</option>
       <option value="dividend">Dywidenda</option><option value="interest">Odsetki</option>
@@ -129,7 +157,7 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
     </select></label>
     <label>Data<input type="date" id="f_date" required></label>
     <label>Konto / broker<input id="f_account" list="acctList" placeholder="np. mBank"></label>
-    <label data-for="trade income">Ticker<input id="f_ticker" placeholder="np. AAPL"></label>
+    <label data-for="trade income">Ticker<input id="f_ticker" list="tickerList" placeholder="np. AAPL" autocapitalize="characters"></label>
     <label data-for="trade">Nazwa<input id="f_name" placeholder="opcjonalnie"></label>
     <label>Waluta<select id="f_ccy"></select></label>
     <label data-for="trade">Jednostki<input id="f_qty" inputmode="decimal"></label>
@@ -149,6 +177,7 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
   </form>
 </dialog>
 <datalist id="acctList"></datalist>
+<datalist id="tickerList"></datalist>
 
 <script>
 (() => {
@@ -192,14 +221,16 @@ async function connectDb(){
     async saveSettings(){ clearTimeout(sTimer); sTimer = setTimeout(()=>{ const snap = JSON.parse(JSON.stringify(settings)); sChain = sChain.then(()=>sdoc.set(snap)).catch(e=>toast("Nie zapisano ustawień: "+(e.message||e.code))); }, 600); } };
   try { const s = await sdoc.get(); if (s.exists && s.data()) Object.assign(settings, s.data()); } catch(e){}
   let loaded = false;
-  const t = setTimeout(()=>{ if(!loaded){ document.getElementById("storeInfo").textContent = "brak połączenia z bazą, dane mogą być nieaktualne"; } }, 10000);
+  const t = setTimeout(()=>{ if(!loaded){ setStore("brak połączenia, dane mogą być nieaktualne",false); } }, 10000);
   col.orderBy("date").limit(1000).onSnapshot(snap => {
     txs = snap.docs.map(d=>d.data()).filter(Boolean);
-    if (!snap.metadata || !snap.metadata.fromCache){ loaded = true; clearTimeout(t); document.getElementById("storeInfo").textContent = api.name; }
+    if (!snap.metadata || !snap.metadata.fromCache){ loaded = true; clearTimeout(t); setStore(api.name,true); }
     render();
-  }, err => { clearTimeout(t); document.getElementById("storeInfo").textContent = "błąd bazy: " + (err.message||err.code); });
+  }, err => { clearTimeout(t); setStore("błąd zapisu: " + (err.message||err.code),false); });
   return api;
 }
+
+function setStore(t, ok){ const el=document.getElementById("storeInfo"); el.innerHTML=`<span class="dot-ok ${ok?"":"dot-off"}"></span>`; el.append(t); }
 
 /* ---------- engine ---------- */
 function compute(list){
@@ -281,11 +312,12 @@ function render(){
 
 function emptyView(){
   return `<section class="panel"><div class="empty">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="var(--accent)" stroke="none"/></svg>
     <h2>Twój portfel jest pusty</h2>
     <p>Dodaj pierwszą wpłatę i zakup, zaimportuj CSV albo wczytaj przykładowy portfel, żeby zobaczyć jak to działa.</p>
     <div class="row"><button class="btn primary" data-act="add">+ Pierwsza transakcja</button>
     <button class="btn" data-act="demo">Wczytaj przykładowe dane</button>
-    <button class="btn" data-act="goimport">Import CSV</button></div>
+    <button class="btn" data-act="goimport">Import z Excela / CSV</button></div>
     <p class="note">Przykładowe dane są fikcyjne i możesz je potem usunąć jednym przyciskiem w zakładce „Kursy i import”.</p></div></section>`;
 }
 
@@ -321,7 +353,11 @@ function overview(st){
   const a = allocation(st);
   const hasTargets = a.sumT > 0;
   const recent = [...filtered()].sort((x,y)=>y.date.localeCompare(x.date)).slice(0,6);
-  return kpis(st,a) + warnings(st) + `
+  const dep=Math.max(st.depositsPLN,0), growth=st.value-dep, tot=Math.max(st.value, dep)||1;
+  const split = `<section class="panel"><div class="panel-h"><h2>Wpłacone a wzrost</h2><span class="spacer"></span><span class="note num">razem ${money(st.value)}</span></div>
+    <div class="split"><span class="a" style="width:${Math.min(dep,st.value)/tot*100}%"></span>${growth>0?`<span class="b" style="width:${growth/tot*100}%"></span>`:""}</div>
+    <div class="split-legend"><span><span class="dot-ok" style="background:var(--accent)"></span>Wpłacono ${money(dep)} (${fmt(st.value?dep/st.value*100:0,1)}%)</span><span class="${growth>=0?"pos":"neg"}">${growth>=0?"Wzrost":"Strata"} ${money(growth)}</span></div></section>`;
+  return kpis(st,a) + warnings(st) + split + `
   <section class="panel">
     <div class="panel-h"><h2>Alokacja</h2><span class="spacer"></span>
       ${hasTargets?`<div class="health">${ring(a.health)}<div><div class="eyebrow">Kondycja</div><div>${a.outCount?`<span class="pill warn">${a.outCount} poza pasmem ±${settings.band} pp</span>`:`<span class="pill in">w pasmie</span>`}</div></div></div>`:`<button class="btn" data-tab-go="alloc">Ustaw alokację docelową</button>`}</div>
@@ -333,38 +369,40 @@ function overview(st){
 
 function positionsView(st){
   return kpis(st) + `<section class="panel"><div class="panel-h"><h2>Pozycje (${st.positions.length})</h2><span class="spacer"></span><span class="note">Wpisz bieżący kurs, Enter zapisuje.</span></div>
-  <div class="tbl-wrap"><table><thead><tr><th>Instrument</th><th class="r">Jednostki</th><th class="r">Śr. cena</th><th class="r">Kurs bieżący</th><th class="r">Wartość</th><th class="r">Wartość PLN</th><th class="r">Koszt PLN</th><th class="r">Zysk PLN</th><th class="r">Udział</th></tr></thead><tbody>
+  <div class="tbl-wrap"><table><thead><tr><th>Instrument</th><th class="r">Jednostki</th><th class="r hide-sm">Śr. cena</th><th class="r">Kurs bieżący</th><th class="r hide-sm">Wartość</th><th class="r">Wartość PLN</th><th class="r hide-sm">Koszt PLN</th><th class="r">Zysk PLN</th><th class="r">Udział</th></tr></thead><tbody>
   ${st.positions.map(p=>`<tr><td><span class="tk">${esc(p.ticker)}</span><span class="sub">${esc(p.name)}</span></td>
-    <td class="r num">${fmt(p.units, p.units%1?4:0)}</td><td class="r num">${fmt(p.avg)} ${p.ccy}</td>
+    <td class="r num">${fmt(p.units, p.units%1?4:0)}</td><td class="r num hide-sm">${fmt(p.avg)} ${p.ccy}</td>
     <td class="r"><input class="cell-in" data-price="${esc(p.ticker)}" value="${p.priced?fmt(p.price):""}" placeholder="${fmt(p.price)}" aria-label="Kurs ${esc(p.ticker)}"><span class="sub">${p.priceDate?"z "+p.priceDate:"brak kursu"}</span></td>
-    <td class="r num">${money(p.valueCcy,p.ccy)}</td><td class="r num">${money(p.valuePLN)}</td><td class="r num">${money(p.costPLN)}</td>
+    <td class="r num hide-sm">${money(p.valueCcy,p.ccy)}</td><td class="r num">${money(p.valuePLN)}</td><td class="r num hide-sm">${money(p.costPLN)}</td>
     <td class="r num ${p.gainPLN>=0?"pos":"neg"}">${p.gainPLN>=0?"+":""}${fmt(p.gainPLN)}<span class="sub">${pct(p.costPLN?p.gainPLN/p.costPLN:0)}</span></td>
-    <td class="r num">${fmt(st.value?p.valuePLN/st.value*100:0,1)}%</td></tr>`).join("")}
-  ${Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>`<tr><td><span class="tk">Gotówka</span><span class="sub">${c}</span></td><td></td><td></td><td></td><td class="r num">${money(v,c)}</td><td class="r num">${money(v*(c==="PLN"?1:num(settings.fxRates[c])))}</td><td></td><td></td><td class="r num">${fmt(st.value?v*(c==="PLN"?1:num(settings.fxRates[c]))/st.value*100:0,1)}%</td></tr>`).join("")}
+    <td class="r num">${fmt(st.value?p.valuePLN/st.value*100:0,1)}%<span class="wbar"><i style="width:${Math.min(100,st.value?p.valuePLN/st.value*100:0)}%"></i></span></td></tr>`).join("")}
+  ${Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>`<tr><td><span class="tk">Gotówka</span><span class="sub">${c}</span></td><td></td><td class="hide-sm"></td><td></td><td class="r num hide-sm">${money(v,c)}</td><td class="r num">${money(v*(c==="PLN"?1:num(settings.fxRates[c])))}</td><td class="hide-sm"></td><td></td><td class="r num">${fmt(st.value?v*(c==="PLN"?1:num(settings.fxRates[c]))/st.value*100:0,1)}%</td></tr>`).join("")}
   </tbody></table></div>
   <p class="note">Zysk zrealizowany ze sprzedaży: <span class="num ${st.realizedPLN>=0?"pos":"neg"}">${money(st.realizedPLN)}</span> · opłaty i prowizje: <span class="num">${money(st.feesPLN)}</span>. Koszt liczony metodą średniej ceny, w PLN po kursie z dnia transakcji.</p></section>`;
 }
 
 function txTable(list, actions=true){
   if (!list.length) return `<p class="note">Brak transakcji.</p>`;
-  return `<table><thead><tr><th>Data</th><th>Typ</th><th>Instrument</th><th>Konto</th><th class="r">Jedn.</th><th class="r">Cena</th><th class="r">Kwota</th>${actions?"<th></th>":""}</tr></thead><tbody>
+  return `<table><thead><tr><th>Data</th><th>Typ</th><th>Instrument</th><th class="hide-sm">Konto</th><th class="r hide-sm">Jedn.</th><th class="r hide-sm">Cena</th><th class="r">Kwota</th>${actions?"<th></th>":""}</tr></thead><tbody>
   ${list.map(t=>{ const q=num(t.qty), p=num(t.price), f=num(t.fee);
     let amount = t.type==="buy"? -(q*p+f) : t.type==="sell"? q*p-f : ["withdrawal","fee"].includes(t.type)? -num(t.amount) : t.type==="fx"? -num(t.amount) : num(t.amount)-num(t.tax);
     const cls = t.type==="buy"?"buy":t.type==="sell"?"sell":["deposit","dividend","interest"].includes(t.type)?"in":"";
     return `<tr><td class="num">${t.date}</td><td><span class="pill ${cls}">${TYPE_LABEL[t.type]}</span></td>
-    <td>${t.ticker?`<span class="tk">${esc(t.ticker.toUpperCase())}</span>`:t.type==="fx"?`${t.ccy} → ${t.toCcy} <span class="num">${fmt(num(t.toAmount))}</span>`:""}${t.note?`<span class="sub">${esc(t.note)}</span>`:""}</td>
-    <td>${esc(t.account||"")}</td><td class="r num">${q?fmt(q,q%1?4:0):""}</td><td class="r num">${p?fmt(p):""}</td>
+    <td>${t.ticker?`<span class="tk">${esc(t.ticker.toUpperCase())}</span>${q?`<span class="sub num">${fmt(q,q%1?4:0)} × ${fmt(p)}</span>`:""}`:t.type==="fx"?`${t.ccy} → ${t.toCcy} <span class="num">${fmt(num(t.toAmount))}</span>`:""}${t.note?`<span class="sub">${esc(t.note)}</span>`:""}</td>
+    <td class="hide-sm">${esc(t.account||"")}</td><td class="r num hide-sm">${q?fmt(q,q%1?4:0):""}</td><td class="r num hide-sm">${p?fmt(p):""}</td>
     <td class="r num ${amount>=0?"pos":"neg"}">${amount>=0?"+":""}${money(amount,t.ccy)}</td>
     ${actions?`<td class="r"><button class="btn ghost" data-edit="${t.id}">Edytuj</button><button class="btn ghost danger" data-del="${t.id}">Usuń</button></td>`:""}</tr>`;}).join("")}
   </tbody></table>`;
 }
 
-let txQuery = "";
+let txQuery = "", txType = "";
 function txView(){
   const list = [...filtered()].sort((a,b)=>b.date.localeCompare(a.date)||(b.created||0)-(a.created||0))
+    .filter(t=>!txType || t.type===txType || (txType==="income" && ["dividend","interest"].includes(t.type)) || (txType==="cash" && ["deposit","withdrawal"].includes(t.type)))
     .filter(t=>!txQuery || [t.ticker,t.note,t.account,TYPE_LABEL[t.type]].join(" ").toLowerCase().includes(txQuery.toLowerCase()));
   return `<section class="panel"><div class="panel-h"><h2>Transakcje (${list.length})</h2><span class="spacer"></span>
-    <input id="txSearch" placeholder="Szukaj: ticker, konto, typ" value="${esc(txQuery)}" style="width:220px"></div>
+    <input id="txSearch" type="search" placeholder="Szukaj: ticker, konto, notatka" value="${esc(txQuery)}" style="width:220px"></div>
+    <div class="chips">${[["","Wszystkie"],["buy","Kupno"],["sell","Sprzedaż"],["income","Dywidendy i odsetki"],["cash","Wpłaty i wypłaty"],["fee","Opłaty"],["fx","Wymiany"]].map(([k,l])=>`<button class="chip" data-txtype="${k}" aria-pressed="${txType===k}">${l}</button>`).join("")}</div>
     <div class="tbl-wrap">${txTable(list)}</div></section>`;
 }
 
@@ -383,8 +421,29 @@ function allocView(st){
       <td class="r">${r.out?(r.k==="CASH"?(r.diffPLN>0?`<span class="pill sell">zwiększ gotówkę</span>`:`<span class="pill buy">zainwestuj nadwyżkę</span>`):r.units?`<span class="pill ${r.units>0?"buy":"sell"}">${r.units>0?"kup":"sprzedaj"} ~${fmt(Math.abs(r.units), Math.abs(r.units)<10?2:0)} szt.</span>`:`<span class="pill warn">brak kursu</span>`):`<span class="pill in">OK</span>`}</td></tr>`;}).join("")}
     </tbody></table></div>
     <div class="row"><input id="newTarget" placeholder="Ticker, np. VWCE" style="width:160px"><button class="btn" data-act="addTarget">Dodaj do alokacji</button></div>
+    ${a.sumT>0?splitCalc(st,a):""}
     <p class="note">Sugestie liczę od bieżącej wartości portfela${acct?` dla konta ${esc(acct)}`:""}. Pasmo to odchylenie w punktach procentowych od celu. Najtańszy rebalancing to zwykle dokupienie niedoważonych pozycji z nowej wpłaty.</p>
   </section>`;
+}
+
+let splitAmt = "";
+function splitCalc(st, a){
+  const amt = num(splitAmt);
+  let rows = [];
+  if (amt>0){
+    const V = st.value + amt;
+    const need = a.rows.filter(r=>r.k!=="CASH" && r.tgt>0).map(r=>({...r, need: Math.max(0, r.tgt*V - r.cur)}));
+    const totalNeed = need.reduce((x,r)=>x+r.need,0);
+    rows = need.filter(r=>r.need>0).map(r=>{ const give = totalNeed ? amt*r.need/totalNeed : 0;
+      const p = st.positions.find(x=>x.ticker===r.k); const px = p ? p.price*(p.ccy==="PLN"?1:num(settings.fxRates[p.ccy])) : 0;
+      return {k:r.k, give, units: px? Math.floor(give/px*100)/100 : 0, ccy:p?.ccy}; }).sort((x,y)=>y.give-x.give);
+  }
+  return `<div class="calc"><div class="panel-h"><h3>Rozłóż nową wpłatę</h3><span class="spacer"></span>
+    <label class="row note" for="splitIn">Kwota PLN <input id="splitIn" class="cell-in" inputmode="decimal" value="${esc(splitAmt)}" placeholder="np. 2000"></label></div>
+    ${amt>0? (rows.length? `<div class="tbl-wrap"><table><thead><tr><th>Kup</th><th class="r">Kwota PLN</th><th class="r">≈ jednostek</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="tk">${esc(r.k)}</td><td class="r num">${fmt(r.give)}</td><td class="r num">${r.units?fmt(r.units, r.units<10?2:0):"brak kursu"}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="note">Wszystko jest powyżej celu. Wpłatę możesz zostawić w gotówce.</p>`)
+      : `<p class="note">Wpisz kwotę, a podzielę ją tylko na zakupy niedoważonych pozycji, bez sprzedawania czegokolwiek.</p>`}
+  </div>`;
 }
 
 function settingsView(){
@@ -408,6 +467,7 @@ const $ = id => document.getElementById(id);
 $("f_toCcy").value = "USD";
 function syncForm(){
   const ty = $("f_type").value;
+  $("typeChips").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.type===ty));
   const group = ["buy","sell"].includes(ty)?"trade":["dividend","interest"].includes(ty)?"income":ty==="fx"?"fx":"cash";
   dlg.querySelectorAll("label[data-for]").forEach(l => l.hidden = !l.dataset.for.split(" ").includes(group));
   $("f_fx").closest("label").hidden = $("f_ccy").value==="PLN";
@@ -415,6 +475,9 @@ function syncForm(){
   $("txPreview").textContent = group==="trade" && q && p ? `Wartość: ${money(q*p,$("f_ccy").value)}, razem z prowizją ${money(ty==="buy"?q*p+f:q*p-f,$("f_ccy").value)}` : "";
 }
 dlg.addEventListener("input", syncForm);
+$("typeChips").innerHTML = Object.entries(TYPE_LABEL).map(([k,v])=>`<button type="button" class="chip" data-type="${k}">${v}</button>`).join("");
+$("typeChips").addEventListener("click", e=>{ const b=e.target.closest("[data-type]"); if(!b) return; $("f_type").value=b.dataset.type; syncForm(); });
+$("f_ticker").addEventListener("change", ()=>{ const k=$("f_ticker").value.trim().toUpperCase(); const last=[...txs].reverse().find(t=>t.ticker===k && t.type==="buy"); if(last){ if(!$("f_name").value) $("f_name").value=last.name||""; $("f_ccy").value=last.ccy; if(!$("f_account").value) $("f_account").value=last.account||""; syncForm(); } });
 function openTx(t){
   editing = t?.id || null;
   $("txTitle").textContent = t ? "Edytuj transakcję" : "Dodaj transakcję";
@@ -422,7 +485,9 @@ function openTx(t){
   $("f_type").value=d.type; $("f_date").value=d.date; $("f_account").value=d.account||"";
   $("f_ticker").value=d.ticker||""; $("f_name").value=d.name||""; $("f_ccy").value=d.ccy||"PLN";
   ["qty","price","fee","amount","tax","fx","toAmount","note"].forEach(k=>$("f_"+k).value = d[k]??"");
-  $("f_toCcy").value = d.toCcy||"USD"; $("txErr").hidden = true; syncForm(); dlg.showModal();
+  $("f_toCcy").value = d.toCcy||"USD"; $("txErr").hidden = true; syncForm();
+  $("tickerList").innerHTML = [...new Set(txs.map(x=>x.ticker).filter(Boolean))].sort().map(k=>`<option value="${esc(k)}">`).join("");
+  dlg.showModal(); setTimeout(()=>{ const f = ["buy","sell","dividend"].includes(d.type) && !t ? $("f_ticker") : null; if (f && matchMedia("(min-width:721px)").matches) f.focus(); }, 30);
 }
 $("txCancel").onclick = () => dlg.close();
 $("txForm").addEventListener("submit", async e => {
@@ -630,17 +695,22 @@ async function loadDemo(){
 }
 
 /* ---------- events ---------- */
-let toastT; function toast(m){ let el=document.querySelector(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);} el.textContent=m; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,2600); }
+let toastT; function toast(m, action){ let el=document.querySelector(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);}
+  el.textContent=m; if(action){ const b=document.createElement("button"); b.textContent=action.label; b.onclick=()=>{ el.hidden=true; action.run(); }; el.append(b); }
+  el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true, action?6000:2600); }
 document.querySelector("nav.tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b){tab=b.dataset.tab; render();} });
 $("acctFilter").addEventListener("change", e=>{ acct=e.target.value; render(); });
 $("addTxBtn").onclick = ()=>{ if(store) openTx(); };
+$("fab").onclick = ()=>{ if(store) openTx(); };
+document.addEventListener("keydown", e=>{ if (e.key==="n" && !e.metaKey && !e.ctrlKey && !dlg.open && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && store){ e.preventDefault(); openTx(); } });
 let wipeArmed=false;
 app.addEventListener("click", async e=>{
   if (!store){ toast("Chwila, łączę się z zapisem danych"); return; }
+  const tt = e.target.closest("[data-txtype]"); if (tt){ txType=tt.dataset.txtype; render(); return; }
   const go = e.target.closest("[data-tab-go]"); if (go){ tab=go.dataset.tabGo; render(); return; }
   const ed = e.target.closest("[data-edit]"); if (ed){ openTx(txs.find(t=>t.id===ed.dataset.edit)); return; }
   const del = e.target.closest("[data-del]");
-  if (del){ if (del.dataset.armed){ await store.delTx(del.dataset.del); toast("Usunięto transakcję"); } else { del.dataset.armed=1; del.textContent="Na pewno?"; } return; }
+  if (del){ const old=txs.find(t=>t.id===del.dataset.del); await store.delTx(del.dataset.del); toast("Usunięto transakcję", {label:"Cofnij", run:()=>store.putTx(old)}); return; }
   const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return;
   if (act==="add") openTx();
   if (act==="demo") loadDemo();
@@ -666,6 +736,7 @@ app.addEventListener("change", e=>{
   if (el.dataset.price!==undefined){ const v=num(el.value); if(v>0) settings.prices[el.dataset.price]={price:v,date:today()}; else delete settings.prices[el.dataset.price]; store.saveSettings(); render(); }
   if (el.dataset.target!==undefined){ const v=num(el.value); if(v>0) settings.targets[el.dataset.target]=v; else delete settings.targets[el.dataset.target]; store.saveSettings(); render(); }
   if (el.dataset.fxrate){ const v=num(el.value); if(v>0){ settings.fxRates[el.dataset.fxrate]=v; store.saveSettings(); toast("Zapisano kurs "+el.dataset.fxrate); } }
+  if (el.id==="splitIn"){ splitAmt=el.value; render(); return; }
   if (el.id==="bandIn"){ settings.band=Math.max(0.5,num(el.value)||5); store.saveSettings(); render(); }
 });
 app.addEventListener("input", e=>{ if(e.target.id==="txSearch"){ txQuery=e.target.value; const pos=e.target.selectionStart; render(); const s=$("txSearch"); s.focus(); s.setSelectionRange(pos,pos);} });
@@ -674,9 +745,9 @@ app.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.classList.co
 /* ---------- boot ---------- */
 render();
 connectDb().then(api => {
-  if (api){ store = api; } else { store = Local; lsLoad(); document.getElementById("storeInfo").textContent = Local.name; }
+  if (api){ store = api; } else { store = Local; lsLoad(); setStore(Local.name,true); }
   render();
-}).catch(() => { store = Local; lsLoad(); document.getElementById("storeInfo").textContent = Local.name; render(); });
+}).catch(() => { store = Local; lsLoad(); setStore(Local.name,true); render(); });
 })();
 </script>
 
