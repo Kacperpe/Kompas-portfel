@@ -3,30 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d6b57">
+<meta name="theme-color" content="#0B1220">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
 <title>Kompas Portfela</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: brokerage ledger — sticky tab bar, summary strip, then one working table per tab */
+/* Layout: broker dashboard — hero value, history chart, structure donut + movers, then working tables */
 :root{
-  --bg:#eef2f1; --surface:#ffffff; --sunk:#e3e9e7; --line:#cfd8d5;
-  --fg:#14211e; --muted:#5b6b67; --accent:#0d6b57; --accent-fg:#ffffff;
-  --good:#1a7f4b; --bad:#b4352a; --warn:#a86a00; --warn-bg:#fbefd6; --bad-bg:#f8e1de; --good-bg:#dcf1e4;
+  --bg:#0B1220; --surface:#111A2E; --sunk:#0E1626; --line:#1E2A44;
+  --fg:#E6EBF5; --muted:#8A97B1; --accent:#4C8DFF; --accent-fg:#FFFFFF; --accent-bg:rgba(76,141,255,.16);
+  --good:#2EBD85; --bad:#F6465D; --warn:#F5A524; --warn-bg:rgba(245,165,36,.14); --bad-bg:rgba(246,70,93,.14); --good-bg:rgba(46,189,133,.14);
+  --cx:#64748B;
   --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --body:"Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
   --mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
-  --r:10px;
+  --r:12px; color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0c1615; --surface:#132120; --sunk:#0f1b1a; --line:#24363a;
-  --fg:#e3ecea; --muted:#8fa29e; --accent:#3fc9a4; --accent-fg:#06221b;
-  --good:#4fd08a; --bad:#ff7a6c; --warn:#f0b43c; --warn-bg:#3a2c0e; --bad-bg:#3a1714; --good-bg:#0f3322; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0c1615; --surface:#132120; --sunk:#0f1b1a; --line:#24363a;
-  --fg:#e3ecea; --muted:#8fa29e; --accent:#3fc9a4; --accent-fg:#06221b;
-  --good:#4fd08a; --bad:#ff7a6c; --warn:#f0b43c; --warn-bg:#3a2c0e; --bad-bg:#3a1714; --good-bg:#0f3322; color-scheme:dark}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#F6F8FB; --surface:#FFFFFF; --sunk:#EEF2F7; --line:#E3E8F0;
+  --fg:#0F172A; --muted:#64748B; --accent:#2563EB; --accent-fg:#FFFFFF; --accent-bg:#DBEAFE;
+  --good:#16A34A; --bad:#DC2626; --warn:#B45309; --warn-bg:#FEF3C7; --bad-bg:#FEE2E2; --good-bg:#DCFCE7; --cx:#94A3B8; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#F6F8FB; --surface:#FFFFFF; --sunk:#EEF2F7; --line:#E3E8F0;
+  --fg:#0F172A; --muted:#64748B; --accent:#2563EB; --accent-fg:#FFFFFF; --accent-bg:#DBEAFE;
+  --good:#16A34A; --bad:#DC2626; --warn:#B45309; --warn-bg:#FEF3C7; --bad-bg:#FEE2E2; --good-bg:#DCFCE7; --cx:#94A3B8; color-scheme:light}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
@@ -118,6 +119,41 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
   .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:end}
+.hero .big{font-family:var(--mono);font-size:clamp(30px,6vw,46px);font-weight:500;letter-spacing:-.03em;line-height:1.1;margin-top:4px}
+.hero .chg{font-family:var(--mono);font-size:15px;margin-top:6px}
+.mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px}
+.mini div,.stats div{display:grid;gap:2px;min-width:0}
+.mini b,.stats b{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.chart-box{position:relative;height:290px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:none;border:0;color:var(--muted);font:500 12px var(--mono);padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent-bg);color:var(--fg)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+.donut-wrap{display:grid;grid-template-columns:190px minmax(0,1fr);gap:20px;align-items:center}
+.donut-box{position:relative;width:190px;height:190px}
+.donut-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none;gap:2px}
+.donut-center b{font:500 15px var(--mono)}
+.leg{display:grid;gap:7px;width:100%;font-size:13px;min-width:0}
+.leg div{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.leg i{width:10px;height:10px;border-radius:3px}
+.leg .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leg .p{font-family:var(--mono);color:var(--muted);font-size:12px}
+.leg .v{font-family:var(--mono);font-size:12px;text-align:right;min-width:84px}
+.movers{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.mv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:center}
+.mv:last-child{border-bottom:0}
+.mv .tk{display:block}
+.mv .r2{text-align:right;font-family:var(--mono);font-size:13px}
+th.sort{cursor:pointer;user-select:none}
+th.sort:hover,th.sort[aria-sort]{color:var(--fg)}
+tbody tr:hover td{background:var(--sunk)}
+tfoot td{font-weight:600;border-top:1px solid var(--line);border-bottom:0}
+.icon-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;width:36px;height:36px;cursor:pointer;font-size:16px}
+@media (max-width:860px){.two,.movers{grid-template-columns:1fr}}
+@media (max-width:720px){.hero{grid-template-columns:1fr}.chart-box{height:230px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.donut-wrap{grid-template-columns:1fr;justify-items:center}}
 </style>
 </head>
 <body>
@@ -130,6 +166,7 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
       <label class="row note" for="acctFilter">Konto
         <select id="acctFilter"><option value="">Wszystkie</option></select>
       </label>
+      <button class="icon-btn" id="themeBtn" title="Przełącz jasny/ciemny" aria-label="Przełącz motyw" hidden>◐</button>
       <button class="btn primary" id="addTxBtn">+ Transakcja</button>
     </div>
     <nav class="tabs" role="tablist">
@@ -179,11 +216,12 @@ dialog::backdrop{background:rgba(5,15,13,.5)}
 <datalist id="acctList"></datalist>
 <datalist id="tickerList"></datalist>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 (() => {
 const CCYS = ["PLN","USD","EUR","GBP","CHF"];
 const TYPE_LABEL = {buy:"Kupno",sell:"Sprzedaż",deposit:"Wpłata",withdrawal:"Wypłata",dividend:"Dywidenda",interest:"Odsetki",fee:"Opłata",fx:"Wymiana",adjust:"Korekta ilości"};
-const PALETTE = ["#0d6b57","#3a7bd5","#c46b2d","#8a5cc2","#c23b6b","#2a9d8f","#b8952a","#5c6f8a","#d4573b","#4f9a3a"];
+const PALETTE = ["#4C8DFF","#8B7CF6","#22B8CF","#F59E0B","#EC4899","#C084FC","#2DD4BF","#FB923C","#60A5FA","#F472B6"];
 const fmt = (n, d=2) => (isFinite(n)?n:0).toLocaleString("pl-PL",{minimumFractionDigits:d,maximumFractionDigits:d});
 const money = (n, c="PLN") => fmt(n) + " " + c;
 const pct = n => (n>=0?"+":"") + fmt(n*100) + "%";
@@ -230,15 +268,19 @@ async function connectDb(){
   return api;
 }
 
+function guessCat(p){ return /ETF|UCITS|ETC|ISHARES|VANGUARD|XTRACKERS/i.test(p.ticker+" "+p.name) ? "ETF" : "Akcje"; }
+const MKT = {PL:"Polska",US:"USA",UK:"Londyn",DE:"Niemcy",FR:"Francja",NL:"Holandia",IT:"Włochy",ES:"Hiszpania",BE:"Belgia",CH:"Szwajcaria",DK:"Dania",SE:"Szwecja",NO:"Norwegia",FI:"Finlandia",PT:"Portugalia",IE:"Irlandia"};
+function marketOf(tk, ccy){ const m=/\.([A-Z]{2})$/.exec(tk); return m ? (MKT[m[1]]||m[1]) : (ccy==="PLN"?"Polska":"Inne"); }
 function setStore(t, ok){ const el=document.getElementById("storeInfo"); el.innerHTML=`<span class="dot-ok ${ok?"":"dot-off"}"></span>`; el.append(t); }
 
 /* ---------- engine ---------- */
 function compute(list){
   const sorted = [...list].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.created||0)-(b.created||0));
-  const pos = {}, cash = {}, warn = [];
+  const pos = {}, cash = {}, warn = [], catMap = {};
   let depositsPLN = 0, realizedPLN = 0, incomePLN = 0, feesPLN = 0;
   const addCash = (c,v) => { cash[c] = (cash[c]||0) + v; };
   for (const t of sorted){
+    if (t.cat && t.ticker) catMap[t.ticker.toUpperCase()] = t.cat;
     const fx = num(t.fx) || (t.ccy==="PLN"?1:(settings.fxRates[t.ccy]||1));
     const qty=num(t.qty), price=num(t.price), fee=num(t.fee), amt=num(t.amount), tax=num(t.tax);
     switch(t.type){
@@ -271,7 +313,7 @@ function compute(list){
   const positions = Object.values(pos).filter(p=>p.units>0).map(p => {
     const pr = settings.prices[p.ticker]; const price = pr ? num(pr.price) : (p.units?p.costCcy/p.units:0);
     const valueCcy = p.units*price, valuePLN = valueCcy*rate(p.ccy);
-    return {...p, price, priceDate: pr?.date, priced: !!pr, avg: p.costCcy/p.units, valueCcy, valuePLN, gainPLN: valuePLN - p.costPLN};
+    return {...p, cat: catMap[p.ticker] || guessCat(p), price, priceDate: pr?.date, priced: !!pr, avg: p.costCcy/p.units, valueCcy, valuePLN, gainPLN: valuePLN - p.costPLN};
   }).sort((a,b)=>b.valuePLN-a.valuePLN);
   const cashPLN = Object.entries(cash).reduce((s,[c,v])=>s+v*rate(c),0);
   const posPLN = positions.reduce((s,p)=>s+p.valuePLN,0);
@@ -310,8 +352,10 @@ function render(){
   document.getElementById("acctList").innerHTML = accs.map(a=>`<option value="${esc(a)}">`).join("");
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===tab));
   const st = compute(filtered());
+  charts.forEach(c=>{ try{c.destroy();}catch(e){} }); charts=[];
   if (!txs.length && tab!=="settings"){ app.innerHTML = emptyView(); return; }
   app.innerHTML = ({overview, positions:positionsView, txs:txView, alloc:allocView, settings:settingsView})[tab](st);
+  if (tab==="overview"){ mountCharts(st); ensureHistory(); }
 }
 
 function emptyView(){
@@ -353,36 +397,231 @@ function warnings(st){
   return w.length ? `<section class="panel" style="border-color:var(--warn)"><span class="eyebrow" style="color:var(--warn)">Do sprawdzenia</span>${w.map(x=>`<div class="note">${esc(x)}</div>`).join("")}</section>` : "";
 }
 
+/* ---------- historia wartości ---------- */
+const IS_HOSTED = !(window.claude && window.claude.use);
+const RANGES = ["1M","3M","YTD","1R","3L","Max"];
+let chartRange="1R", chartMode="value", donutBy="pos";
+let hist=null, histState=IS_HOSTED?"idle":"unavailable", histErr="", histKey="", seriesCache={key:"",S:null}, charts=[];
+const dn = iso => Math.floor(Date.parse(iso+"T00:00:00Z")/864e5);
+const YSUF = {PL:".WA",US:"",UK:".L",DE:".DE",FR:".PA",NL:".AS",IT:".MI",ES:".MC",BE:".BR",CH:".SW",DK:".CO",SE:".ST",NO:".OL",FI:".HE",PT:".LS",IE:".IR"};
+function yahooSym(tk, ccy){ const m=/^(.*)\.([A-Z]{2})$/.exec(tk); if (m && m[2] in YSUF) return m[1]+YSUF[m[2]]; return ccy==="PLN" ? tk+".WA" : tk; }
+function histNeeds(){
+  const ccyOf={}; txs.forEach(t=>{ if(t.ticker) ccyOf[t.ticker]=t.ccy; });
+  const syms=[...new Set(Object.keys(ccyOf).map(k=>yahooSym(k,ccyOf[k])))].sort();
+  const fx=[...new Set(["USD","EUR","GBP","CHF",...txs.map(t=>t.ccy)].filter(c=>c&&c!=="PLN"))].map(c=>c+"PLN=X");
+  const first=txs.reduce((m,t)=>t.date&&t.date<m?t.date:m, today());
+  return {syms:[...syms,...fx], first, key:syms.join(",")+"|"+first+"|"+today()};
+}
+async function ensureHistory(){
+  if (!IS_HOSTED || histState==="loading" || !txs.length) return;
+  const need=histNeeds(); if (need.key===histKey) return;
+  histKey=need.key;
+  const cached=lsGet("kp-hist-v1");
+  if (cached && cached.key===need.key){ hist=cached.data; histState="ok"; seriesCache.key=""; render(); return; }
+  histState="loading"; render();
+  try {
+    const r=await fetch(`/api/history?from=${need.first}&symbols=${encodeURIComponent(need.syms.join(","))}`);
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    hist=await r.json(); histState="ok"; lsSet("kp-hist-v1",{key:need.key,data:hist});
+  } catch(e){ histState="error"; histErr=e.message||String(e); }
+  seriesCache.key=""; render();
+}
+function getSeries(st){
+  const key=[acct, filtered().length, txs.length, histState, st.value.toFixed(2)].join("|");
+  if (seriesCache.key!==key) seriesCache={key, S:buildSeries(filtered(), st)};
+  return seriesCache.S;
+}
+function buildSeries(list, st){
+  if (!list.length) return null;
+  const sorted=[...list].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.created||0)-(b.created||0));
+  const d0=dn(sorted[0].date), d1=dn(today()), n=d1-d0+1;
+  if (!(n>=2)) return null;
+  const splitR={}, splitDay={};
+  { const u={}; for (const t of sorted){ const k=(t.ticker||"").toUpperCase(), q=num(t.qty);
+      if (t.type==="buy") u[k]=(u[k]||0)+q; else if (t.type==="sell") u[k]=(u[k]||0)-q;
+      else if (t.type==="adjust"){ if ((u[k]||0)>1e-9){ const r=((u[k])+q)/u[k]; if (r>1.5||r<0.67){ splitR[k]=r; splitDay[k]=dn(t.date); } } u[k]=(u[k]||0)+q; } } }
+  const align=ser=>{ const arr=new Float64Array(n); if(!ser) return arr; let j=0,last=0; for(let i=0;i<n;i++){ const d=d0+i; while(j<ser.t.length && ser.t[j]<=d){ last=ser.c[j]; j++; } arr[i]=last; } return arr; };
+  const fxArr={};
+  const fxAt=(c,i)=>{ if(!c||c==="PLN") return 1; if(!(c in fxArr)){ const sr=hist?.data?.[c+"PLN=X"]; fxArr[c]=sr?align(sr):null; } const a=fxArr[c]; return (a && a[i]>0)?a[i]:(num(settings.fxRates[c])||1); };
+  const ccyOfT={}; sorted.forEach(t=>{ if(t.ticker) ccyOfT[t.ticker.toUpperCase()]=t.ccy; });
+  const px={}, pccy={}, pdiv={}, missing=[];
+  Object.keys(ccyOfT).forEach(k=>{
+    const sr=hist?.data?.[yahooSym(k,ccyOfT[k])];
+    if (!sr){ missing.push(k); return; }
+    let c=sr.ccy||"PLN", dv=1; if (c==="GBp"||c==="GBX"){ c="GBP"; dv=100; } if (c==="ILA"){ c="ILS"; dv=100; }
+    const arr=align(sr), cur=settings.prices[k];
+    if (cur && arr[n-1]>0){ const mine=num(cur.price)*fxAt(ccyOfT[k],n-1), theirs=arr[n-1]/dv*fxAt(c,n-1), r=theirs/mine;
+      if (!(r>0.6 && r<1.6)){ missing.push(k); return; } }
+    px[k]=arr; pccy[k]=c; pdiv[k]=dv;
+  });
+  const v=new Float64Array(n), dep=new Float64Array(n), flow=new Float64Array(n), units={}, cash={}, lastPx={};
+  let ti=0, depCum=0;
+  for (let i=0;i<n;i++){
+    const day=d0+i; let f=0;
+    while (ti<sorted.length && dn(sorted[ti].date)<=day){
+      const t=sorted[ti++], fx=num(t.fx)||(t.ccy==="PLN"?1:(num(settings.fxRates[t.ccy])||1));
+      const k=(t.ticker||"").toUpperCase(), q=num(t.qty), p=num(t.price), fee=num(t.fee), amt=num(t.amount), tax=num(t.tax);
+      const m=(splitR[k] && dn(t.date)<splitDay[k]) ? splitR[k] : 1;
+      const add=(c,x)=>{ cash[c]=(cash[c]||0)+x; };
+      switch(t.type){
+        case "deposit": add(t.ccy,amt); f+=amt*fx; break;
+        case "withdrawal": add(t.ccy,-amt); f-=amt*fx; break;
+        case "fee": add(t.ccy,-amt); break;
+        case "dividend": case "interest": add(t.ccy,amt-tax); break;
+        case "fx": add(t.ccy,-amt); add(t.toCcy,num(t.toAmount)); break;
+        case "buy": units[k]=(units[k]||0)+q*m; add(t.ccy,-(q*p+fee)); lastPx[k]=p*fx/m; break;
+        case "sell": units[k]=(units[k]||0)-q*m; add(t.ccy,q*p-fee); lastPx[k]=p*fx/m; break;
+        case "adjust": if (!splitR[k]) units[k]=(units[k]||0)+q; break;
+      }
+    }
+    depCum+=f; dep[i]=depCum; flow[i]=f;
+    let val=0; for (const c in cash) val+=cash[c]*fxAt(c,i);
+    for (const k in units){ const u=units[k]; if (Math.abs(u)<1e-9) continue;
+      const p = px[k] && px[k][i]>0 ? px[k][i]/pdiv[k]*fxAt(pccy[k],i) : (lastPx[k]||0);
+      val+=u*p; }
+    v[i]=val;
+  }
+  v[n-1]=st.value;
+  const days=[]; for (let i=0;i<n;i++) days.push(new Date((d0+i)*864e5).toISOString().slice(0,10));
+  return {days, v, dep, flow, missing:[...new Set(missing)], n};
+}
+function rangeIdx(S){
+  const i1=S.n-1, end=new Date(S.days[i1]+"T00:00:00Z"); let start;
+  const back=m=>{ const d=new Date(end); d.setUTCMonth(d.getUTCMonth()-m); return d.toISOString().slice(0,10); };
+  if (chartRange==="1M") start=back(1); else if (chartRange==="3M") start=back(3); else if (chartRange==="1R") start=back(12);
+  else if (chartRange==="3L") start=back(36); else if (chartRange==="YTD") start=S.days[i1].slice(0,4)+"-01-01"; else start=S.days[0];
+  let i0=S.days.findIndex(d=>d>=start); if (i0<0||i0>=i1) i0=0;
+  return {i0, i1};
+}
+function rangeStats(S,i0,i1){
+  let idx=1, peak=1, mdd=0, flows=0; const tw=[0];
+  for (let i=i0+1;i<=i1;i++){ flows+=S.flow[i]; const prev=S.v[i-1];
+    if (prev>1){ idx*=(S.v[i]-S.flow[i])/prev; } peak=Math.max(peak,idx); mdd=Math.min(mdd, idx/peak-1); tw.push(idx-1); }
+  return {chg:S.v[i1]-S.v[i0], result:S.v[i1]-S.v[i0]-flows, flows, twr:idx-1, mdd, tw};
+}
+const compactPL = new Intl.NumberFormat("pl-PL",{notation:"compact",maximumFractionDigits:1});
+function historyPanel(st){
+  const S=getSeries(st); if (!S) return "";
+  const {i0,i1}=rangeIdx(S), r=rangeStats(S,i0,i1);
+  const cls=x=>x>=0?"pos":"neg", sg=x=>x>=0?"+":"";
+  const src = histState==="ok" ? `Notowania dzienne z Yahoo Finance, wycena na zamknięcie.${S.missing.length?` Bez notowań (wycena po cenie transakcji): ${esc(S.missing.slice(0,8).join(", "))}${S.missing.length>8?"…":""}.`:""}`
+    : histState==="loading" ? "Pobieram notowania historyczne…"
+    : histState==="unavailable" ? "Tu wartość w czasie liczę po cenach z Twoich transakcji. Wersja na kompas-portfela.vercel.app pobiera prawdziwe notowania dzienne."
+    : histState==="error" ? `Nie udało się pobrać notowań (${esc(histErr)}). Pokazuję wycenę po cenach z transakcji.` : "";
+  return `<section class="panel"><div class="panel-h"><h2>Wartość w czasie</h2><span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Widok">${[["value","Wartość"],["twr","Stopa zwrotu"]].map(([k,l])=>`<button data-cmode="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Okres">${RANGES.map(x=>`<button data-crange="${x}" aria-pressed="${chartRange===x}">${x}</button>`).join("")}</div></div>
+    <div class="chart-box"><canvas id="histChart" role="img" aria-label="Wykres wartości portfela w czasie"></canvas></div>
+    <div class="stats">
+      <div><span class="eyebrow">Zmiana wartości</span><b class="${cls(r.chg)}">${sg(r.chg)}${money(r.chg)}</b></div>
+      <div><span class="eyebrow">Wynik bez wpłat</span><b class="${cls(r.result)}">${sg(r.result)}${money(r.result)}</b></div>
+      <div><span class="eyebrow">Stopa zwrotu (TWR)</span><b class="${cls(r.twr)}">${pct(r.twr)}</b></div>
+      <div><span class="eyebrow">Maks. obsunięcie</span><b class="${r.mdd<-0.0001?"neg":""}">${fmt(r.mdd*100)}%</b></div>
+    </div>
+    <p class="note">${src} Stopa zwrotu ważona czasem pomija wpływ wpłat i wypłat.</p></section>`;
+}
+
+/* ---------- struktura (donut) i liderzy ---------- */
+function donutData(st){
+  const g={}, add=(k,x)=>{ if(x>0.005) g[k]=(g[k]||0)+x; };
+  if (donutBy==="acct"){ const accs=acct?[acct]:accounts(); accs.forEach(a=>add(a||"Bez konta", compute(txs.filter(t=>(t.account||"")===a)).value)); }
+  else { st.positions.forEach(p=>add(donutBy==="pos"?p.ticker:donutBy==="cat"?p.cat:marketOf(p.ticker,p.ccy), p.valuePLN)); add("Gotówka", st.cashPLN); }
+  let e=Object.entries(g).sort((a,b)=>b[1]-a[1]);
+  if (e.length>9){ const rest=e.slice(8).reduce((x,[,v])=>x+v,0); e=[...e.slice(0,8),["Pozostałe",rest]]; }
+  let ci=0; return e.map(([k,v])=>({k,v,c: k==="Gotówka"||k==="Pozostałe" ? "var(--cx)" : PALETTE[(ci++)%PALETTE.length]}));
+}
+function donutPanel(st){
+  const d=donutData(st), tot=d.reduce((x,y)=>x+y.v,0)||1;
+  return `<section class="panel"><div class="panel-h"><h2>Struktura</h2><span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Podział">${[["pos","Pozycje"],["cat","Klasa"],["mkt","Giełda"],["acct","Konto"]].map(([k,l])=>`<button data-donut="${k}" aria-pressed="${donutBy===k}">${l}</button>`).join("")}</div></div>
+    <div class="donut-wrap"><div class="donut-box"><canvas id="donutChart" role="img" aria-label="Struktura portfela"></canvas>
+      <div class="donut-center"><span class="eyebrow">Razem</span><b>${compactPL.format(tot)} zł</b></div></div>
+      <div class="leg">${d.map(x=>`<div><i style="background:${x.c}"></i><span class="n">${esc(x.k)}</span><span class="p">${fmt(x.v/tot*100,1)}%</span><span class="v">${fmt(x.v,0)} zł</span></div>`).join("")}</div></div></section>`;
+}
+function moversPanel(st){
+  const ps=st.positions.filter(p=>p.costPLN>1).map(p=>({...p, g:p.gainPLN/p.costPLN})).sort((a,b)=>b.g-a.g);
+  const row=p=>`<div class="mv"><div><span class="tk">${esc(p.ticker)}</span><span class="sub">${esc(p.name)}</span></div><div class="r2 ${p.g>=0?"pos":"neg"}">${p.g>=0?"▲":"▼"} ${pct(p.g)}<span class="sub">${p.gainPLN>=0?"+":""}${fmt(p.gainPLN)} zł</span></div></div>`;
+  const best=ps.slice(0,4), worst=ps.slice(-4).reverse().filter(p=>!best.includes(p));
+  return `<section class="panel"><div class="panel-h"><h2>Najlepsze i najsłabsze</h2><span class="spacer"></span><button class="btn ghost" data-tab-go="positions">Wszystkie pozycje →</button></div>
+    <div class="movers"><div><span class="eyebrow">Najwięcej zyskują</span>${best.map(row).join("")||'<p class="note">Brak pozycji.</p>'}</div>
+    <div><span class="eyebrow">Najwięcej tracą</span>${worst.map(row).join("")||'<p class="note">Brak.</p>'}</div></div></section>`;
+}
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function mountCharts(st){
+  if (!window.Chart) return;
+  const muted=cssVar("--muted"), line=cssVar("--line"), acc=cssVar("--accent"), surf=cssVar("--surface");
+  const hc=document.getElementById("histChart"), S=getSeries(st);
+  if (hc && S){
+    const {i0,i1}=rangeIdx(S), r=rangeStats(S,i0,i1), step=Math.max(1,Math.ceil((i1-i0+1)/700)), idx=[];
+    for (let i=i0;i<=i1;i+=step) idx.push(i); if (idx[idx.length-1]!==i1) idx.push(i1);
+    const long=(i1-i0)>100, lab=d=>new Date(d+"T00:00:00Z").toLocaleDateString("pl-PL", long?{month:"short",year:"2-digit",timeZone:"UTC"}:{day:"numeric",month:"short",timeZone:"UTC"});
+    const ctx=hc.getContext("2d"), grad=ctx.createLinearGradient(0,0,0,hc.parentElement.clientHeight||280);
+    grad.addColorStop(0, acc+"55"); grad.addColorStop(1, acc+"00");
+    const ds = chartMode==="value" ? [
+      {label:"Wartość", data:idx.map(i=>S.v[i]), borderColor:acc, backgroundColor:grad, fill:true, borderWidth:2, pointRadius:0, tension:.2},
+      {label:"Wpłacono netto", data:idx.map(i=>S.dep[i]), borderColor:muted, borderDash:[5,4], borderWidth:1.5, pointRadius:0, stepped:true, fill:false}]
+      : [{label:"Stopa zwrotu", data:idx.map(i=>r.tw[i-i0]*100), borderColor:acc, borderWidth:2, pointRadius:0, tension:.2,
+          fill:{target:{value:0}, above:cssVar("--good-bg"), below:cssVar("--bad-bg")}}];
+    charts.push(new Chart(hc,{type:"line", data:{labels:idx.map(i=>S.days[i]), datasets:ds}, options:{responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{legend:{display:chartMode==="value", position:"top", align:"end", labels:{color:muted, boxWidth:10, boxHeight:10, usePointStyle:true}},
+        tooltip:{callbacks:{title:it=>new Date(it[0].label+"T00:00:00Z").toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}),
+          label:c=>` ${c.dataset.label}: ${chartMode==="value"?money(c.parsed.y):(c.parsed.y>=0?"+":"")+fmt(c.parsed.y)+"%"}`}}},
+      scales:{x:{ticks:{color:muted, maxTicksLimit:6, maxRotation:0, autoSkip:true, callback:function(v){ return lab(this.getLabelForValue(v)); }}, grid:{display:false}, border:{color:line}},
+        y:{ticks:{color:muted, maxTicksLimit:5, callback:v=>chartMode==="value"?compactPL.format(v):v+"%"}, grid:{color:line}, border:{display:false}}}}}));
+  }
+  const dc=document.getElementById("donutChart");
+  if (dc){ const d=donutData(st), cols=d.map(x=>x.c.startsWith("var")?cssVar("--cx"):x.c), tot=d.reduce((a,b)=>a+b.v,0)||1;
+    charts.push(new Chart(dc,{type:"doughnut", data:{labels:d.map(x=>x.k), datasets:[{data:d.map(x=>x.v), backgroundColor:cols, borderColor:surf, borderWidth:2, hoverOffset:4}]},
+      options:{cutout:"70%", responsive:true, maintainAspectRatio:false, animation:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.label}: ${money(c.parsed)} (${fmt(c.parsed/tot*100,1)}%)`}}}}})); }
+}
+
 function overview(st){
-  const a = allocation(st);
-  const hasTargets = a.sumT > 0;
-  const recent = [...filtered()].sort((x,y)=>y.date.localeCompare(x.date)).slice(0,6);
-  const dep=Math.max(st.depositsPLN,0), growth=st.value-dep, tot=Math.max(st.value, dep)||1;
-  const split = `<section class="panel"><div class="panel-h"><h2>Wpłacone a wzrost</h2><span class="spacer"></span><span class="note num">razem ${money(st.value)}</span></div>
-    <div class="split"><span class="a" style="width:${Math.min(dep,st.value)/tot*100}%"></span>${growth>0?`<span class="b" style="width:${growth/tot*100}%"></span>`:""}</div>
-    <div class="split-legend"><span><span class="dot-ok" style="background:var(--accent)"></span>Wpłacono ${money(dep)} (${fmt(st.value?dep/st.value*100:0,1)}%)</span><span class="${growth>=0?"pos":"neg"}">${growth>=0?"Wzrost":"Strata"} ${money(growth)}</span></div></section>`;
-  return kpis(st,a) + warnings(st) + split + `
-  <section class="panel">
-    <div class="panel-h"><h2>Alokacja</h2><span class="spacer"></span>
-      ${hasTargets?`<div class="health">${ring(a.health)}<div><div class="eyebrow">Kondycja</div><div>${a.outCount?`<span class="pill warn">${a.outCount} poza pasmem ±${settings.band} pp</span>`:`<span class="pill in">w pasmie</span>`}</div></div></div>`:`<button class="btn" data-tab-go="alloc">Ustaw alokację docelową</button>`}</div>
-    ${allocBar(a)}
-  </section>
-  <section class="panel"><div class="panel-h"><h2>Ostatnia aktywność</h2><span class="spacer"></span><button class="btn ghost" data-tab-go="txs">Wszystkie transakcje →</button></div>
+  const a = allocation(st), ret = st.depositsPLN ? st.gain/st.depositsPLN : 0, up = st.gain>=0;
+  const recent = [...filtered()].sort((x,y)=>y.date.localeCompare(x.date)||(y.created||0)-(x.created||0)).slice(0,6);
+  return `<section class="panel hero">
+    <div><span class="eyebrow">Wartość portfela${acct?` · ${esc(acct)}`:""}</span>
+      <div class="big">${money(st.value)}</div>
+      <div class="chg ${up?"pos":"neg"}">${up?"▲":"▼"} ${up?"+":""}${money(st.gain)} (${pct(ret)}) <span class="note">względem wpłat netto</span></div></div>
+    <div class="mini">
+      <div><span class="eyebrow">Wpłacono netto</span><b>${money(st.depositsPLN)}</b></div>
+      <div><span class="eyebrow">Gotówka</span><b>${money(st.cashPLN)}</b></div>
+      <div><span class="eyebrow">Dywidendy i odsetki</span><b>${money(st.incomePLN)}</b></div>
+      <div><span class="eyebrow">Zysk zrealizowany</span><b class="${st.realizedPLN>=0?"pos":"neg"}">${st.realizedPLN>=0?"+":""}${money(st.realizedPLN)}</b></div>
+    </div></section>` + warnings(st) + historyPanel(st) + `<div class="two">${donutPanel(st)}${moversPanel(st)}</div>` +
+  (a.sumT>0 ? `<section class="panel"><div class="panel-h"><h2>Alokacja docelowa</h2><span class="spacer"></span>
+      <div class="health">${ring(a.health)}<div><div class="eyebrow">Kondycja</div><div>${a.outCount?`<span class="pill warn">${a.outCount} poza pasmem ±${settings.band} pp</span>`:`<span class="pill in">w paśmie</span>`}</div></div></div>
+      <button class="btn ghost" data-tab-go="alloc">Rebalancing →</button></div>${allocBar(a)}</section>` : "") +
+  `<section class="panel"><div class="panel-h"><h2>Ostatnia aktywność</h2><span class="spacer"></span><button class="btn ghost" data-tab-go="txs">Wszystkie transakcje →</button></div>
   <div class="tbl-wrap">${txTable(recent,false)}</div></section>`;
 }
 
+let posSort={k:"valuePLN",d:-1}, posF="all", posQ="";
 function positionsView(st){
-  return kpis(st) + `<section class="panel"><div class="panel-h"><h2>Pozycje (${st.positions.length})</h2><span class="spacer"></span><span class="note">Wpisz bieżący kurs, Enter zapisuje.</span></div>
-  <div class="tbl-wrap"><table><thead><tr><th>Instrument</th><th class="r">Jednostki</th><th class="r hide-sm">Śr. cena</th><th class="r">Kurs bieżący</th><th class="r hide-sm">Wartość</th><th class="r">Wartość PLN</th><th class="r hide-sm">Koszt PLN</th><th class="r">Zysk PLN</th><th class="r">Udział</th></tr></thead><tbody>
-  ${st.positions.map(p=>`<tr><td><span class="tk">${esc(p.ticker)}</span><span class="sub">${esc(p.name)}</span></td>
-    <td class="r num">${fmt(p.units, p.units%1?4:0)}</td><td class="r num hide-sm">${fmt(p.avg)} ${p.ccy}</td>
+  const cats=[...new Set(st.positions.map(p=>p.cat))].sort();
+  let list=st.positions.map(p=>({...p, gainPct:p.costPLN?p.gainPLN/p.costPLN:0, share:st.value?p.valuePLN/st.value:0}))
+    .filter(p=>posF==="all"||(posF==="gain"&&p.gainPLN>0)||(posF==="loss"&&p.gainPLN<0)||p.cat===posF)
+    .filter(p=>!posQ||(p.ticker+" "+p.name).toLowerCase().includes(posQ.toLowerCase()));
+  const {k,d}=posSort; list.sort((a,b)=>typeof a[k]==="string"?d*a[k].localeCompare(b[k]):d*((a[k]||0)-(b[k]||0)));
+  const th=(key,l,cls="r")=>`<th class="${cls} sort" data-sort="${key}" ${posSort.k===key?`aria-sort="${posSort.d<0?"descending":"ascending"}"`:""}>${l}${posSort.k===key?(posSort.d<0?" ↓":" ↑"):""}</th>`;
+  const tv=list.reduce((x,p)=>x+p.valuePLN,0), tc=list.reduce((x,p)=>x+p.costPLN,0), tg=tv-tc;
+  const showCash = posF==="all" && !posQ;
+  const chips=[["all","Wszystkie"],["gain","Zyskowne"],["loss","Stratne"],...cats.map(c=>[c,c])];
+  return `<section class="panel">
+    <div class="panel-h"><h2>Pozycje (${list.length}${list.length!==st.positions.length?` z ${st.positions.length}`:""})</h2><span class="spacer"></span>
+      <input id="posSearch" type="search" placeholder="Szukaj tickera lub nazwy" value="${esc(posQ)}" style="width:220px"></div>
+    <div class="chips">${chips.map(([key,l])=>`<button class="chip" data-posf="${esc(key)}" aria-pressed="${posF===key}">${esc(l)}</button>`).join("")}</div>
+    <div class="tbl-wrap"><table><thead><tr>${th("ticker","Instrument","")}${th("units","Jednostki","r hide-sm")}<th class="r hide-sm">Śr. cena</th><th class="r">Kurs bieżący</th>${th("valuePLN","Wartość PLN")}${th("costPLN","Koszt PLN","r hide-sm")}${th("gainPLN","Zysk PLN")}${th("gainPct","Zysk %")}${th("share","Udział")}</tr></thead><tbody>
+  ${list.map(p=>`<tr><td><span class="tk">${esc(p.ticker)}</span><span class="sub">${esc(p.name)} · ${esc(p.cat)}</span></td>
+    <td class="r num hide-sm">${fmt(p.units, p.units%1?4:0)}</td><td class="r num hide-sm">${fmt(p.avg)} ${p.ccy}</td>
     <td class="r"><input class="cell-in" data-price="${esc(p.ticker)}" value="${p.priced?fmt(p.price):""}" placeholder="${fmt(p.price)}" aria-label="Kurs ${esc(p.ticker)}"><span class="sub">${p.priceDate?"z "+p.priceDate:"brak kursu"}</span></td>
-    <td class="r num hide-sm">${money(p.valueCcy,p.ccy)}</td><td class="r num">${money(p.valuePLN)}</td><td class="r num hide-sm">${money(p.costPLN)}</td>
-    <td class="r num ${p.gainPLN>=0?"pos":"neg"}">${p.gainPLN>=0?"+":""}${fmt(p.gainPLN)}<span class="sub">${pct(p.costPLN?p.gainPLN/p.costPLN:0)}</span></td>
-    <td class="r num">${fmt(st.value?p.valuePLN/st.value*100:0,1)}%<span class="wbar"><i style="width:${Math.min(100,st.value?p.valuePLN/st.value*100:0)}%"></i></span></td></tr>`).join("")}
-  ${Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>`<tr><td><span class="tk">Gotówka</span><span class="sub">${c}</span></td><td></td><td class="hide-sm"></td><td></td><td class="r num hide-sm">${money(v,c)}</td><td class="r num">${money(v*(c==="PLN"?1:num(settings.fxRates[c])))}</td><td class="hide-sm"></td><td></td><td class="r num">${fmt(st.value?v*(c==="PLN"?1:num(settings.fxRates[c]))/st.value*100:0,1)}%</td></tr>`).join("")}
-  </tbody></table></div>
-  <p class="note">Zysk zrealizowany ze sprzedaży: <span class="num ${st.realizedPLN>=0?"pos":"neg"}">${money(st.realizedPLN)}</span> · opłaty i prowizje: <span class="num">${money(st.feesPLN)}</span>. Koszt liczony metodą średniej ceny, w PLN po kursie z dnia transakcji.</p></section>`;
+    <td class="r num">${money(p.valuePLN)}</td><td class="r num hide-sm">${money(p.costPLN)}</td>
+    <td class="r num ${p.gainPLN>=0?"pos":"neg"}">${p.gainPLN>=0?"+":""}${fmt(p.gainPLN)}</td>
+    <td class="r num ${p.gainPLN>=0?"pos":"neg"}">${p.gainPLN>=0?"▲":"▼"} ${pct(p.gainPct)}</td>
+    <td class="r num">${fmt(p.share*100,1)}%<span class="wbar"><i style="width:${Math.min(100,p.share*100)}%"></i></span></td></tr>`).join("")}
+  ${showCash?Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>{ const pl=v*(c==="PLN"?1:num(settings.fxRates[c])); return `<tr><td><span class="tk">Gotówka</span><span class="sub">${c}</span></td><td class="hide-sm"></td><td class="hide-sm"></td><td class="r num">${c!=="PLN"?money(v,c):""}</td><td class="r num">${money(pl)}</td><td class="hide-sm"></td><td></td><td></td><td class="r num">${fmt(st.value?pl/st.value*100:0,1)}%</td></tr>`; }).join(""):""}
+  </tbody><tfoot><tr><td>Razem${showCash?" (bez gotówki)":""}</td><td class="hide-sm"></td><td class="hide-sm"></td><td></td><td class="r num">${money(tv)}</td><td class="r num hide-sm">${money(tc)}</td><td class="r num ${tg>=0?"pos":"neg"}">${tg>=0?"+":""}${fmt(tg)}</td><td class="r num ${tg>=0?"pos":"neg"}">${pct(tc?tg/tc:0)}</td><td class="r num">${fmt(st.value?tv/st.value*100:0,1)}%</td></tr></tfoot></table></div>
+  <p class="note">Zysk zrealizowany ze sprzedaży: <span class="num ${st.realizedPLN>=0?"pos":"neg"}">${money(st.realizedPLN)}</span> · opłaty i prowizje: <span class="num">${money(st.feesPLN)}</span>. Koszt liczony metodą średniej ceny, w PLN po kursie z dnia transakcji. Kliknij nagłówek kolumny, żeby posortować.</p></section>`;
 }
 
 function txTable(list, actions=true){
@@ -597,13 +836,14 @@ function parseXtb(name, sheets){
   out.acctNo = String((co.find(r=>String(r[0])==="Account number")||[])[1]||"");
   const hi = co.findIndex(r=>r.map(String).includes("Type") && r.map(String).includes("Amount"));
   const H = co[hi].map(String), ix = k => H.indexOf(k);
-  const iT=ix("Type"), iI=ix("Instrument"), iK=ix("Ticker"), iTm=ix("Time"), iA=ix("Amount"), iID=ix("ID"), iC=ix("Comment"), iP=ix("Product");
+  const iCat=ix("Category"), iT=ix("Type"), iI=ix("Instrument"), iK=ix("Ticker"), iTm=ix("Time"), iA=ix("Amount"), iID=ix("ID"), iC=ix("Comment"), iP=ix("Product");
   co.slice(hi+1).forEach((r,n)=>{
     const type=String(r[iT]||"").trim(); if (!type) return;
     if (type==="Total"){ out.total += pnum(r[iA]); return; }
     const amt=pnum(r[iA]), ms=xtbTime(r[iTm]), date=ms?new Date(ms).toISOString().slice(0,10):"";
     const base={id:"xtb_"+(r[iID]||out.acctNo+"_"+n), created:ms||Date.now()+n, date, account:XTB_PRODUCT(String(r[iP]||"")), ccy:"PLN", fx:1,
-      ticker:String(r[iK]||"").trim().toUpperCase(), name:String(r[iI]||"").trim(), qty:0, price:0, fee:0, amount:0, tax:0, toCcy:"", toAmount:0, note:String(r[iC]||"").trim()};
+      ticker:String(r[iK]||"").trim().toUpperCase(), name:String(r[iI]||"").trim(), qty:0, price:0, fee:0, amount:0, tax:0, toCcy:"", toAmount:0, note:String(r[iC]||"").trim(),
+      cat:({STOCK:"Akcje",ETF:"ETF",ETC:"Surowce",BOND:"Obligacje",CRT:"Krypto",CRYPTO:"Krypto"})[String(r[iCat]||"").toUpperCase()]||""};
     const lt=type.toLowerCase();
     if (lt==="stock purchase" || lt==="stock sell" || lt==="stock sale"){
       const m=XTB_RX.exec(base.note); const q=m?parseFloat(m[4]):0;
@@ -816,11 +1056,18 @@ document.querySelector("nav.tabs").addEventListener("click", e=>{ const b=e.targ
 $("acctFilter").addEventListener("change", e=>{ acct=e.target.value; render(); });
 $("addTxBtn").onclick = ()=>{ if(store) openTx(); };
 $("fab").onclick = ()=>{ if(store) openTx(); };
+if (IS_HOSTED){ const tb=$("themeBtn"); tb.hidden=false; const saved=lsGet("kp-theme"); if (saved) document.documentElement.dataset.theme=saved;
+  tb.onclick=()=>{ const cur=document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"); const nx=cur==="light"?"dark":"light"; document.documentElement.dataset.theme=nx; lsSet("kp-theme",nx); render(); }; }
 document.addEventListener("keydown", e=>{ if (e.key==="n" && !e.metaKey && !e.ctrlKey && !dlg.open && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && store){ e.preventDefault(); openTx(); } });
 let wipeArmed=false;
 app.addEventListener("click", async e=>{
   if (!store){ toast("Chwila, łączę się z zapisem danych"); return; }
   const tt = e.target.closest("[data-txtype]"); if (tt){ txType=tt.dataset.txtype; render(); return; }
+  const cr = e.target.closest("[data-crange]"); if (cr){ chartRange=cr.dataset.crange; render(); return; }
+  const cm = e.target.closest("[data-cmode]"); if (cm){ chartMode=cm.dataset.cmode; render(); return; }
+  const dbn = e.target.closest("[data-donut]"); if (dbn){ donutBy=dbn.dataset.donut; render(); return; }
+  const so = e.target.closest("[data-sort]"); if (so){ const k=so.dataset.sort; posSort = posSort.k===k ? {k, d:-posSort.d} : {k, d: k==="ticker"?1:-1}; render(); return; }
+  const pf = e.target.closest("[data-posf]"); if (pf){ posF=pf.dataset.posf; render(); return; }
   const go = e.target.closest("[data-tab-go]"); if (go){ tab=go.dataset.tabGo; render(); return; }
   const ed = e.target.closest("[data-edit]"); if (ed){ openTx(txs.find(t=>t.id===ed.dataset.edit)); return; }
   const del = e.target.closest("[data-del]");
@@ -853,7 +1100,8 @@ app.addEventListener("change", e=>{
   if (el.id==="splitIn"){ splitAmt=el.value; render(); return; }
   if (el.id==="bandIn"){ settings.band=Math.max(0.5,num(el.value)||5); store.saveSettings(); render(); }
 });
-app.addEventListener("input", e=>{ if(e.target.id==="txSearch"){ txQuery=e.target.value; const pos=e.target.selectionStart; render(); const s=$("txSearch"); s.focus(); s.setSelectionRange(pos,pos);} });
+app.addEventListener("input", e=>{ if(e.target.id==="posSearch"){ posQ=e.target.value; const pos=e.target.selectionStart; render(); const s2=$("posSearch"); s2.focus(); s2.setSelectionRange(pos,pos); return; }
+  if(e.target.id==="txSearch"){ txQuery=e.target.value; const pos=e.target.selectionStart; render(); const s=$("txSearch"); s.focus(); s.setSelectionRange(pos,pos);} });
 app.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.classList.contains("cell-in")) e.target.blur(); });
 
 /* ---------- boot ---------- */
