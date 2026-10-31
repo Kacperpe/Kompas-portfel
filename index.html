@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d6b57">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<title>Kompas Portfela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: brokerage ledger — sticky tab bar, summary strip, then one working table per tab */
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --sunk:#e3e9e7; --line:#cfd8d5;
+  --fg:#14211e; --muted:#5b6b67; --accent:#0d6b57; --accent-fg:#ffffff;
+  --good:#1a7f4b; --bad:#b4352a; --warn:#a86a00; --warn-bg:#fbefd6; --bad-bg:#f8e1de; --good-bg:#dcf1e4;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1615; --surface:#132120; --sunk:#0f1b1a; --line:#24363a;
+  --fg:#e3ecea; --muted:#8fa29e; --accent:#3fc9a4; --accent-fg:#06221b;
+  --good:#4fd08a; --bad:#ff7a6c; --warn:#f0b43c; --warn-bg:#3a2c0e; --bad-bg:#3a1714; --good-bg:#0f3322; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1615; --surface:#132120; --sunk:#0f1b1a; --line:#24363a;
+  --fg:#e3ecea; --muted:#8fa29e; --accent:#3fc9a4; --accent-fg:#06221b;
+  --good:#4fd08a; --bad:#ff7a6c; --warn:#f0b43c; --warn-bg:#3a2c0e; --bad-bg:#3a1714; --good-bg:#0f3322; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px}
+.brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand svg{width:22px;height:22px;color:var(--accent)}
+.store{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.spacer{flex:1}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font:500 14px var(--body);padding:10px 12px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+select,input,textarea{font:inherit;color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{font:600 14px var(--body);border-radius:8px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted);padding:4px 8px}
+.btn.danger{color:var(--bad)}
+main{padding-block:24px 64px;display:grid;gap:24px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:18px}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--surface);padding:16px 18px;display:grid;gap:4px;min-width:0}
+.kpi .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:22px;font-weight:500}
+.kpi .s{font-size:12px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:14px;min-width:0}
+.panel-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tbl-wrap{overflow-x:auto;margin:0 -18px;padding:0 18px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+.tk{font-family:var(--mono);font-weight:500}
+.sub{display:block;font-size:12px;color:var(--muted);white-space:normal;max-width:220px}
+.pill{display:inline-block;font:500 11px var(--mono);padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted)}
+.pill.buy{background:var(--good-bg);color:var(--good)}.pill.sell{background:var(--bad-bg);color:var(--bad)}
+.pill.in{background:var(--good-bg);color:var(--good)}.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.cell-in{width:110px;padding:5px 8px;text-align:right;font-family:var(--mono)}
+.alloc-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--sunk)}
+.alloc-bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.dev{position:relative;height:8px;background:var(--sunk);border-radius:4px;width:140px}
+.dev .band{position:absolute;top:0;bottom:0;background:var(--good-bg)}
+.dev .mid{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--muted)}
+.dev .dot{position:absolute;top:-2px;width:12px;height:12px;border-radius:50%;margin-left:-6px;background:var(--accent)}
+.dev .dot.out{background:var(--bad)}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.form label{display:grid;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.form .wide{grid-column:1/-1}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.empty{padding:28px;text-align:center;color:var(--muted);display:grid;gap:12px;justify-items:center}
+.note{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:20}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--fg);padding:20px;width:min(640px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(5,15,13,.5)}
+.health{display:flex;align-items:center;gap:12px}
+.ring{width:54px;height:54px}
+@media (max-width:560px){.kpi .v{font-size:18px}.dev{width:90px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor"/></svg>Kompas Portfela</div>
+      <span class="store" id="storeInfo">łączenie…</span>
+      <span class="spacer"></span>
+      <label class="row note" for="acctFilter">Konto
+        <select id="acctFilter"><option value="">Wszystkie</option></select>
+      </label>
+      <button class="btn primary" id="addTxBtn">+ Transakcja</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" aria-selected="true">Przegląd</button>
+      <button role="tab" data-tab="positions" aria-selected="false">Pozycje</button>
+      <button role="tab" data-tab="txs" aria-selected="false">Transakcje</button>
+      <button role="tab" data-tab="alloc" aria-selected="false">Alokacja i rebalancing</button>
+      <button role="tab" data-tab="settings" aria-selected="false">Kursy i import</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<dialog id="txDlg">
+  <form id="txForm" method="dialog" class="form">
+    <h2 class="wide" id="txTitle">Dodaj transakcję</h2>
+    <label>Typ<select id="f_type">
+      <option value="buy">Kupno</option><option value="sell">Sprzedaż</option>
+      <option value="deposit">Wpłata</option><option value="withdrawal">Wypłata</option>
+      <option value="dividend">Dywidenda</option><option value="interest">Odsetki</option>
+      <option value="fee">Opłata</option><option value="fx">Wymiana walut</option>
+    </select></label>
+    <label>Data<input type="date" id="f_date" required></label>
+    <label>Konto / broker<input id="f_account" list="acctList" placeholder="np. mBank"></label>
+    <label data-for="trade income">Ticker<input id="f_ticker" placeholder="np. AAPL"></label>
+    <label data-for="trade">Nazwa<input id="f_name" placeholder="opcjonalnie"></label>
+    <label>Waluta<select id="f_ccy"></select></label>
+    <label data-for="trade">Jednostki<input id="f_qty" inputmode="decimal"></label>
+    <label data-for="trade">Cena<input id="f_price" inputmode="decimal"></label>
+    <label data-for="trade">Prowizja<input id="f_fee" inputmode="decimal" placeholder="0"></label>
+    <label data-for="cash income fx">Kwota<input id="f_amount" inputmode="decimal"></label>
+    <label data-for="income">Podatek pobrany<input id="f_tax" inputmode="decimal" placeholder="0"></label>
+    <label data-for="fx">Na walutę<select id="f_toCcy"></select></label>
+    <label data-for="fx">Otrzymano<input id="f_toAmount" inputmode="decimal"></label>
+    <label>Kurs do PLN<input id="f_fx" inputmode="decimal" placeholder="1 dla PLN"></label>
+    <label class="wide">Notatka<input id="f_note"></label>
+    <p class="wide note" id="txPreview"></p>
+    <p class="wide note neg" id="txErr" hidden></p>
+    <div class="wide row"><span class="spacer"></span>
+      <button type="button" class="btn" id="txCancel">Anuluj</button>
+      <button type="submit" class="btn primary" id="txSave">Zapisz</button></div>
+  </form>
+</dialog>
+<datalist id="acctList"></datalist>
+
+<script>
+(() => {
+const CCYS = ["PLN","USD","EUR","GBP","CHF"];
+const TYPE_LABEL = {buy:"Kupno",sell:"Sprzedaż",deposit:"Wpłata",withdrawal:"Wypłata",dividend:"Dywidenda",interest:"Odsetki",fee:"Opłata",fx:"Wymiana"};
+const PALETTE = ["#0d6b57","#3a7bd5","#c46b2d","#8a5cc2","#c23b6b","#2a9d8f","#b8952a","#5c6f8a","#d4573b","#4f9a3a"];
+const fmt = (n, d=2) => (isFinite(n)?n:0).toLocaleString("pl-PL",{minimumFractionDigits:d,maximumFractionDigits:d});
+const money = (n, c="PLN") => fmt(n) + " " + c;
+const pct = n => (n>=0?"+":"") + fmt(n*100) + "%";
+const num = v => { if (v===undefined||v===null||v==="") return 0; const x = parseFloat(String(v).replace(/\s/g,"").replace(",", ".")); return isFinite(x)?x:0; };
+const today = () => new Date().toISOString().slice(0,10);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let txs = [];
+let settings = { fxRates:{PLN:1,USD:3.65,EUR:4.25,GBP:4.85,CHF:4.55}, prices:{}, targets:{}, band:5 };
+let tab = "overview", acct = "", editing = null, store = null;
+
+/* ---------- storage: db (per-person, private) with localStorage fallback ---------- */
+const LS = "kompas-portfela-v1";
+function lsLoad(){ try { const j = JSON.parse(localStorage.getItem(LS)||"null"); if (j){ txs=j.txs||[]; Object.assign(settings,j.settings||{}); } } catch(e){} }
+function lsSave(){ try { localStorage.setItem(LS, JSON.stringify({txs,settings})); } catch(e){} }
+
+const Local = { name:"lokalnie (ta przeglądarka)",
+  async putTx(t){ const i=txs.findIndex(x=>x.id===t.id); if(i>=0) txs[i]=t; else txs.push(t); lsSave(); render(); },
+  async delTx(id){ txs=txs.filter(x=>x.id!==id); lsSave(); render(); },
+  async saveSettings(){ lsSave(); } };
+
+async function connectDb(){
+  if (!window.claude || !window.claude.use) return null;
+  const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+  if (!db || !user) return null;
+  const id = await user.id(); if (!id) return null;
+  const base = "data/users/" + id;
+  const col = db.collection(base + "/p/tx");
+  const sdoc = db.doc(base + "/settings");
+  let sChain = Promise.resolve(), sTimer = null;
+  const api = { name:"zapisane na koncie (prywatne)",
+    async putTx(t){ await col.doc(t.id).set(t); },
+    async delTx(id){ await col.doc(id).delete(); },
+    async saveSettings(){ clearTimeout(sTimer); sTimer = setTimeout(()=>{ const snap = JSON.parse(JSON.stringify(settings)); sChain = sChain.then(()=>sdoc.set(snap)).catch(e=>toast("Nie zapisano ustawień: "+(e.message||e.code))); }, 600); } };
+  try { const s = await sdoc.get(); if (s.exists && s.data()) Object.assign(settings, s.data()); } catch(e){}
+  let loaded = false;
+  const t = setTimeout(()=>{ if(!loaded){ document.getElementById("storeInfo").textContent = "brak połączenia z bazą, dane mogą być nieaktualne"; } }, 10000);
+  col.orderBy("date").limit(1000).onSnapshot(snap => {
+    txs = snap.docs.map(d=>d.data()).filter(Boolean);
+    if (!snap.metadata || !snap.metadata.fromCache){ loaded = true; clearTimeout(t); document.getElementById("storeInfo").textContent = api.name; }
+    render();
+  }, err => { clearTimeout(t); document.getElementById("storeInfo").textContent = "błąd bazy: " + (err.message||err.code); });
+  return api;
+}
+
+/* ---------- engine ---------- */
+function compute(list){
+  const sorted = [...list].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:(a.created||0)-(b.created||0));
+  const pos = {}, cash = {}, warn = [];
+  let depositsPLN = 0, realizedPLN = 0, incomePLN = 0, feesPLN = 0;
+  const addCash = (c,v) => { cash[c] = (cash[c]||0) + v; };
+  for (const t of sorted){
+    const fx = num(t.fx) || (t.ccy==="PLN"?1:(settings.fxRates[t.ccy]||1));
+    const qty=num(t.qty), price=num(t.price), fee=num(t.fee), amt=num(t.amount), tax=num(t.tax);
+    switch(t.type){
+      case "deposit": addCash(t.ccy, amt); depositsPLN += amt*fx; break;
+      case "withdrawal": addCash(t.ccy, -amt); depositsPLN -= amt*fx; break;
+      case "fee": addCash(t.ccy, -amt); feesPLN += amt*fx; break;
+      case "dividend": case "interest": addCash(t.ccy, amt-tax); incomePLN += (amt-tax)*fx; break;
+      case "fx": addCash(t.ccy, -amt); addCash(t.toCcy, num(t.toAmount)); break;
+      case "buy": {
+        const k = t.ticker.toUpperCase();
+        const p = pos[k] ||= {ticker:k, name:t.name||k, ccy:t.ccy, units:0, costCcy:0, costPLN:0, income:0};
+        if (t.name) p.name = t.name;
+        p.units += qty; p.costCcy += qty*price+fee; p.costPLN += (qty*price+fee)*fx;
+        addCash(t.ccy, -(qty*price+fee)); feesPLN += fee*fx; break; }
+      case "sell": {
+        const k = t.ticker.toUpperCase(); const p = pos[k];
+        if (!p || p.units < qty - 1e-9){ warn.push(`${t.date}: sprzedaż ${qty} ${k}, a w portfelu jest ${p?fmt(p.units,4):0}`); }
+        if (p && p.units>0){ const share = Math.min(qty/p.units,1);
+          const cPLN = p.costPLN*share; realizedPLN += (qty*price-fee)*fx - cPLN;
+          p.costCcy -= p.costCcy*share; p.costPLN -= cPLN; p.units -= qty; if (p.units<1e-9){p.units=0;p.costCcy=0;p.costPLN=0;} }
+        addCash(t.ccy, qty*price-fee); feesPLN += fee*fx; break; }
+    }
+    if ((t.type==="dividend"||t.type==="interest") && t.ticker && pos[t.ticker.toUpperCase()]) pos[t.ticker.toUpperCase()].income += (amt-tax)*fx;
+  }
+  const rate = c => c==="PLN"?1:num(settings.fxRates[c]);
+  const positions = Object.values(pos).filter(p=>p.units>0).map(p => {
+    const pr = settings.prices[p.ticker]; const price = pr ? num(pr.price) : (p.units?p.costCcy/p.units:0);
+    const valueCcy = p.units*price, valuePLN = valueCcy*rate(p.ccy);
+    return {...p, price, priceDate: pr?.date, priced: !!pr, avg: p.costCcy/p.units, valueCcy, valuePLN, gainPLN: valuePLN - p.costPLN};
+  }).sort((a,b)=>b.valuePLN-a.valuePLN);
+  const cashPLN = Object.entries(cash).reduce((s,[c,v])=>s+v*rate(c),0);
+  const posPLN = positions.reduce((s,p)=>s+p.valuePLN,0);
+  const value = posPLN + cashPLN;
+  for (const [c,v] of Object.entries(cash)) if (v < -0.005) warn.push(`Gotówka ${c} ujemna (${fmt(v)}). Brakuje wpłaty lub wymiany walut.`);
+  return {positions, cash, cashPLN, posPLN, value, depositsPLN, realizedPLN, incomePLN, feesPLN, gain: value-depositsPLN, warn};
+}
+
+function allocation(st){
+  const V = st.value || 0, band = num(settings.band)/100;
+  const keys = new Set([...st.positions.map(p=>p.ticker), ...Object.keys(settings.targets).filter(k=>num(settings.targets[k])>0)]);
+  keys.add("CASH");
+  const rows = [...keys].map(k => {
+    const p = st.positions.find(x=>x.ticker===k);
+    const cur = k==="CASH" ? st.cashPLN : (p?.valuePLN||0);
+    const w = V ? cur/V : 0, tgt = num(settings.targets[k])/100;
+    const diffPLN = tgt*V - cur;
+    const px = p ? p.price*(p.ccy==="PLN"?1:num(settings.fxRates[p.ccy])) : 0;
+    return {k, name: k==="CASH"?"Gotówka":(p?.name||k), ccy:p?.ccy, w, tgt, dev:w-tgt, out: Math.abs(w-tgt) > band, cur, diffPLN, units: px? diffPLN/px : 0};
+  }).sort((a,b)=>b.cur-a.cur);
+  const sumT = rows.reduce((s,r)=>s+r.tgt,0);
+  const totalDev = rows.reduce((s,r)=>s+Math.abs(r.dev),0)/2;
+  const health = Math.max(0, Math.round(100 - totalDev*200));
+  return {rows, sumT, band, health, outCount: rows.filter(r=>r.out).length};
+}
+
+/* ---------- render ---------- */
+const app = document.getElementById("app");
+function filtered(){ return acct ? txs.filter(t=>(t.account||"")===acct) : txs; }
+function accounts(){ return [...new Set(txs.map(t=>t.account||"").filter(Boolean))].sort(); }
+
+function render(){
+  const accs = accounts();
+  const sel = document.getElementById("acctFilter");
+  sel.innerHTML = '<option value="">Wszystkie</option>' + accs.map(a=>`<option ${a===acct?"selected":""}>${esc(a)}</option>`).join("");
+  document.getElementById("acctList").innerHTML = accs.map(a=>`<option value="${esc(a)}">`).join("");
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===tab));
+  const st = compute(filtered());
+  if (!txs.length && tab!=="settings"){ app.innerHTML = emptyView(); return; }
+  app.innerHTML = ({overview, positions:positionsView, txs:txView, alloc:allocView, settings:settingsView})[tab](st);
+}
+
+function emptyView(){
+  return `<section class="panel"><div class="empty">
+    <h2>Twój portfel jest pusty</h2>
+    <p>Dodaj pierwszą wpłatę i zakup, zaimportuj CSV albo wczytaj przykładowy portfel, żeby zobaczyć jak to działa.</p>
+    <div class="row"><button class="btn primary" data-act="add">+ Pierwsza transakcja</button>
+    <button class="btn" data-act="demo">Wczytaj przykładowe dane</button>
+    <button class="btn" data-act="goimport">Import CSV</button></div>
+    <p class="note">Przykładowe dane są fikcyjne i możesz je potem usunąć jednym przyciskiem w zakładce „Kursy i import”.</p></div></section>`;
+}
+
+function kpis(st, a){
+  const ret = st.depositsPLN ? st.gain/st.depositsPLN : 0;
+  const cashLines = Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>money(v,c)).join(" · ") || "0,00 PLN";
+  return `<section class="kpis">
+    <div class="kpi"><span class="eyebrow">Wartość portfela</span><span class="v">${money(st.value)}</span><span class="s">pozycje ${money(st.posPLN)}</span></div>
+    <div class="kpi"><span class="eyebrow">Zysk / strata</span><span class="v ${st.gain>=0?"pos":"neg"}">${st.gain>=0?"+":""}${money(st.gain)}</span><span class="s">${pct(ret)} od wpłat netto</span></div>
+    <div class="kpi"><span class="eyebrow">Wpłacono netto</span><span class="v">${money(st.depositsPLN)}</span><span class="s">dywidendy i odsetki netto ${money(st.incomePLN)}</span></div>
+    <div class="kpi"><span class="eyebrow">Gotówka</span><span class="v">${money(st.cashPLN)}</span><span class="s">${cashLines}</span></div>
+  </section>`;
+}
+
+function allocBar(a){
+  const rows = a.rows.filter(r=>r.w>0.0005);
+  return `<div class="alloc-bar">${rows.map((r,i)=>`<span style="width:${r.w*100}%;background:${r.k==="CASH"?"var(--muted)":PALETTE[i%PALETTE.length]}" title="${esc(r.k)} ${fmt(r.w*100)}%"></span>`).join("")}</div>
+  <div class="legend">${rows.map((r,i)=>`<span><i style="background:${r.k==="CASH"?"var(--muted)":PALETTE[i%PALETTE.length]}"></i>${esc(r.k==="CASH"?"Gotówka":r.k)} <span class="num">${fmt(r.w*100,1)}%</span></span>`).join("")}</div>`;
+}
+
+function ring(score){
+  const c = 2*Math.PI*22, col = score>=80?"var(--good)":score>=60?"var(--warn)":"var(--bad)";
+  return `<svg class="ring" viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--sunk)" stroke-width="6"/><circle cx="27" cy="27" r="22" fill="none" stroke="${col}" stroke-width="6" stroke-dasharray="${c*score/100} ${c}" transform="rotate(-90 27 27)" stroke-linecap="round"/><text x="27" y="31" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="var(--fg)">${score}</text></svg>`;
+}
+
+function warnings(st){
+  const unpriced = st.positions.filter(p=>!p.priced).map(p=>p.ticker);
+  const w = [...st.warn]; if (unpriced.length) w.push(`Brak bieżącej ceny dla: ${unpriced.join(", ")}. Wyceniam po średniej cenie zakupu. Uzupełnij w zakładce Pozycje.`);
+  return w.length ? `<section class="panel" style="border-color:var(--warn)"><span class="eyebrow" style="color:var(--warn)">Do sprawdzenia</span>${w.map(x=>`<div class="note">${esc(x)}</div>`).join("")}</section>` : "";
+}
+
+function overview(st){
+  const a = allocation(st);
+  const hasTargets = a.sumT > 0;
+  const recent = [...filtered()].sort((x,y)=>y.date.localeCompare(x.date)).slice(0,6);
+  return kpis(st,a) + warnings(st) + `
+  <section class="panel">
+    <div class="panel-h"><h2>Alokacja</h2><span class="spacer"></span>
+      ${hasTargets?`<div class="health">${ring(a.health)}<div><div class="eyebrow">Kondycja</div><div>${a.outCount?`<span class="pill warn">${a.outCount} poza pasmem ±${settings.band} pp</span>`:`<span class="pill in">w pasmie</span>`}</div></div></div>`:`<button class="btn" data-tab-go="alloc">Ustaw alokację docelową</button>`}</div>
+    ${allocBar(a)}
+  </section>
+  <section class="panel"><div class="panel-h"><h2>Ostatnia aktywność</h2><span class="spacer"></span><button class="btn ghost" data-tab-go="txs">Wszystkie transakcje →</button></div>
+  <div class="tbl-wrap">${txTable(recent,false)}</div></section>`;
+}
+
+function positionsView(st){
+  return kpis(st) + `<section class="panel"><div class="panel-h"><h2>Pozycje (${st.positions.length})</h2><span class="spacer"></span><span class="note">Wpisz bieżący kurs, Enter zapisuje.</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Instrument</th><th class="r">Jednostki</th><th class="r">Śr. cena</th><th class="r">Kurs bieżący</th><th class="r">Wartość</th><th class="r">Wartość PLN</th><th class="r">Koszt PLN</th><th class="r">Zysk PLN</th><th class="r">Udział</th></tr></thead><tbody>
+  ${st.positions.map(p=>`<tr><td><span class="tk">${esc(p.ticker)}</span><span class="sub">${esc(p.name)}</span></td>
+    <td class="r num">${fmt(p.units, p.units%1?4:0)}</td><td class="r num">${fmt(p.avg)} ${p.ccy}</td>
+    <td class="r"><input class="cell-in" data-price="${esc(p.ticker)}" value="${p.priced?fmt(p.price):""}" placeholder="${fmt(p.price)}" aria-label="Kurs ${esc(p.ticker)}"><span class="sub">${p.priceDate?"z "+p.priceDate:"brak kursu"}</span></td>
+    <td class="r num">${money(p.valueCcy,p.ccy)}</td><td class="r num">${money(p.valuePLN)}</td><td class="r num">${money(p.costPLN)}</td>
+    <td class="r num ${p.gainPLN>=0?"pos":"neg"}">${p.gainPLN>=0?"+":""}${fmt(p.gainPLN)}<span class="sub">${pct(p.costPLN?p.gainPLN/p.costPLN:0)}</span></td>
+    <td class="r num">${fmt(st.value?p.valuePLN/st.value*100:0,1)}%</td></tr>`).join("")}
+  ${Object.entries(st.cash).filter(([,v])=>Math.abs(v)>0.005).map(([c,v])=>`<tr><td><span class="tk">Gotówka</span><span class="sub">${c}</span></td><td></td><td></td><td></td><td class="r num">${money(v,c)}</td><td class="r num">${money(v*(c==="PLN"?1:num(settings.fxRates[c])))}</td><td></td><td></td><td class="r num">${fmt(st.value?v*(c==="PLN"?1:num(settings.fxRates[c]))/st.value*100:0,1)}%</td></tr>`).join("")}
+  </tbody></table></div>
+  <p class="note">Zysk zrealizowany ze sprzedaży: <span class="num ${st.realizedPLN>=0?"pos":"neg"}">${money(st.realizedPLN)}</span> · opłaty i prowizje: <span class="num">${money(st.feesPLN)}</span>. Koszt liczony metodą średniej ceny, w PLN po kursie z dnia transakcji.</p></section>`;
+}
+
+function txTable(list, actions=true){
+  if (!list.length) return `<p class="note">Brak transakcji.</p>`;
+  return `<table><thead><tr><th>Data</th><th>Typ</th><th>Instrument</th><th>Konto</th><th class="r">Jedn.</th><th class="r">Cena</th><th class="r">Kwota</th>${actions?"<th></th>":""}</tr></thead><tbody>
+  ${list.map(t=>{ const q=num(t.qty), p=num(t.price), f=num(t.fee);
+    let amount = t.type==="buy"? -(q*p+f) : t.type==="sell"? q*p-f : ["withdrawal","fee"].includes(t.type)? -num(t.amount) : t.type==="fx"? -num(t.amount) : num(t.amount)-num(t.tax);
+    const cls = t.type==="buy"?"buy":t.type==="sell"?"sell":["deposit","dividend","interest"].includes(t.type)?"in":"";
+    return `<tr><td class="num">${t.date}</td><td><span class="pill ${cls}">${TYPE_LABEL[t.type]}</span></td>
+    <td>${t.ticker?`<span class="tk">${esc(t.ticker.toUpperCase())}</span>`:t.type==="fx"?`${t.ccy} → ${t.toCcy} <span class="num">${fmt(num(t.toAmount))}</span>`:""}${t.note?`<span class="sub">${esc(t.note)}</span>`:""}</td>
+    <td>${esc(t.account||"")}</td><td class="r num">${q?fmt(q,q%1?4:0):""}</td><td class="r num">${p?fmt(p):""}</td>
+    <td class="r num ${amount>=0?"pos":"neg"}">${amount>=0?"+":""}${money(amount,t.ccy)}</td>
+    ${actions?`<td class="r"><button class="btn ghost" data-edit="${t.id}">Edytuj</button><button class="btn ghost danger" data-del="${t.id}">Usuń</button></td>`:""}</tr>`;}).join("")}
+  </tbody></table>`;
+}
+
+let txQuery = "";
+function txView(){
+  const list = [...filtered()].sort((a,b)=>b.date.localeCompare(a.date)||(b.created||0)-(a.created||0))
+    .filter(t=>!txQuery || [t.ticker,t.note,t.account,TYPE_LABEL[t.type]].join(" ").toLowerCase().includes(txQuery.toLowerCase()));
+  return `<section class="panel"><div class="panel-h"><h2>Transakcje (${list.length})</h2><span class="spacer"></span>
+    <input id="txSearch" placeholder="Szukaj: ticker, konto, typ" value="${esc(txQuery)}" style="width:220px"></div>
+    <div class="tbl-wrap">${txTable(list)}</div></section>`;
+}
+
+function allocView(st){
+  const a = allocation(st);
+  return `<section class="panel"><div class="panel-h"><h2>Alokacja docelowa</h2><span class="spacer"></span>
+    <label class="row note" for="bandIn">Dopuszczalne odchylenie ± <input id="bandIn" class="cell-in" style="width:64px" value="${settings.band}"> pp</label></div>
+    <p class="note">Wpisz docelowy udział każdej pozycji. Suma: <span class="num ${Math.abs(a.sumT-1)<0.001?"pos":"neg"}">${fmt(a.sumT*100,1)}%</span>${Math.abs(a.sumT-1)<0.001?"":" (powinno być 100%)"}. Nowy ticker możesz dodać polem na dole.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Pozycja</th><th class="r">Teraz</th><th class="r">Cel %</th><th>Odchylenie</th><th class="r">Różnica PLN</th><th class="r">Rebalancing</th></tr></thead><tbody>
+    ${a.rows.map(r=>{ const span=0.3, x=v=>Math.max(0,Math.min(100,(v/span+0.5)*100));
+      return `<tr><td><span class="tk">${esc(r.k==="CASH"?"Gotówka":r.k)}</span>${r.k!=="CASH"?`<span class="sub">${esc(r.name)}</span>`:""}</td>
+      <td class="r num">${fmt(r.w*100,1)}%</td>
+      <td class="r"><input class="cell-in" style="width:72px" data-target="${esc(r.k)}" value="${settings.targets[r.k]??""}" placeholder="0"></td>
+      <td><div class="dev" title="${pct(r.dev)}"><div class="band" style="left:${x(-a.band)}%;width:${x(a.band)-x(-a.band)}%"></div><div class="mid" style="left:50%"></div><div class="dot ${r.out?"out":""}" style="left:${x(r.dev)}%"></div></div><span class="sub num">${(r.dev>=0?"+":"")+fmt(r.dev*100,1)} pp</span></td>
+      <td class="r num ${r.diffPLN>=0?"pos":"neg"}">${r.diffPLN>=0?"+":""}${fmt(r.diffPLN)}</td>
+      <td class="r">${r.out?(r.k==="CASH"?(r.diffPLN>0?`<span class="pill sell">zwiększ gotówkę</span>`:`<span class="pill buy">zainwestuj nadwyżkę</span>`):r.units?`<span class="pill ${r.units>0?"buy":"sell"}">${r.units>0?"kup":"sprzedaj"} ~${fmt(Math.abs(r.units), Math.abs(r.units)<10?2:0)} szt.</span>`:`<span class="pill warn">brak kursu</span>`):`<span class="pill in">OK</span>`}</td></tr>`;}).join("")}
+    </tbody></table></div>
+    <div class="row"><input id="newTarget" placeholder="Ticker, np. VWCE" style="width:160px"><button class="btn" data-act="addTarget">Dodaj do alokacji</button></div>
+    <p class="note">Sugestie liczę od bieżącej wartości portfela${acct?` dla konta ${esc(acct)}`:""}. Pasmo to odchylenie w punktach procentowych od celu. Najtańszy rebalancing to zwykle dokupienie niedoważonych pozycji z nowej wpłaty.</p>
+  </section>`;
+}
+
+function settingsView(){
+  return `<section class="panel"><h2>Kursy walut</h2>
+    <p class="note">Kurs średni do PLN używany do wyceny bieżącej. Przy transakcjach w walucie wpisz kurs z dnia transakcji, wtedy koszt w PLN jest dokładny (np. średni NBP).</p>
+    <div class="row">${CCYS.filter(c=>c!=="PLN").map(c=>`<label class="row note" for="fx_${c}">${c}/PLN <input class="cell-in" id="fx_${c}" data-fxrate="${c}" value="${fmt(num(settings.fxRates[c]),4)}" style="width:90px"></label>`).join("")}</div></section>
+  <section class="panel"><h2>Import z pliku</h2>
+    <p class="note">Wczytaj eksport od brokera albo własny arkusz: CSV, XLS, XLSX lub ODS. Możesz też skopiować komórki w Excelu i wkleić je niżej. Kolumny dopasuję sam, a ty poprawisz, co trzeba. Ustawienia kolumn zapamiętuję dla plików o tych samych nagłówkach.</p>
+    <div class="row"><input type="file" id="impFile" accept=".csv,.txt,.xls,.xlsx,.xlsm,.ods,text/csv"><button class="btn" data-act="export">Eksportuj CSV</button></div>
+    <textarea id="csvText" rows="4" placeholder="albo wklej tu komórki z Excela / tekst CSV" style="width:100%"></textarea>
+    <div class="row"><button class="btn" data-act="pasteImport">Wczytaj wklejone</button><span class="note" id="importInfo"></span></div></section>
+  ${impView()}
+  <section class="panel"><h2>Dane</h2><p class="note">Zapis: ${esc(store?.name||"")}. ${txs.length} transakcji.${store===Local?" Dane są tylko w tej przeglądarce, rób eksport CSV jako kopię zapasową.":""}</p>
+    <div class="row"><button class="btn" data-act="demo">Wczytaj przykładowe dane</button><button class="btn danger" data-act="wipe">Usuń wszystkie transakcje</button><span class="note" id="wipeConfirm"></span></div></section>`;
+}
+
+/* ---------- tx dialog ---------- */
+const dlg = document.getElementById("txDlg");
+const $ = id => document.getElementById(id);
+["f_ccy","f_toCcy"].forEach(id => $(id).innerHTML = CCYS.map(c=>`<option>${c}</option>`).join(""));
+$("f_toCcy").value = "USD";
+function syncForm(){
+  const ty = $("f_type").value;
+  const group = ["buy","sell"].includes(ty)?"trade":["dividend","interest"].includes(ty)?"income":ty==="fx"?"fx":"cash";
+  dlg.querySelectorAll("label[data-for]").forEach(l => l.hidden = !l.dataset.for.split(" ").includes(group));
+  $("f_fx").closest("label").hidden = $("f_ccy").value==="PLN";
+  const q=num($("f_qty").value), p=num($("f_price").value), f=num($("f_fee").value);
+  $("txPreview").textContent = group==="trade" && q && p ? `Wartość: ${money(q*p,$("f_ccy").value)}, razem z prowizją ${money(ty==="buy"?q*p+f:q*p-f,$("f_ccy").value)}` : "";
+}
+dlg.addEventListener("input", syncForm);
+function openTx(t){
+  editing = t?.id || null;
+  $("txTitle").textContent = t ? "Edytuj transakcję" : "Dodaj transakcję";
+  const d = t || {type:"buy",date:today(),account:acct||accounts()[0]||"",ccy:"PLN"};
+  $("f_type").value=d.type; $("f_date").value=d.date; $("f_account").value=d.account||"";
+  $("f_ticker").value=d.ticker||""; $("f_name").value=d.name||""; $("f_ccy").value=d.ccy||"PLN";
+  ["qty","price","fee","amount","tax","fx","toAmount","note"].forEach(k=>$("f_"+k).value = d[k]??"");
+  $("f_toCcy").value = d.toCcy||"USD"; $("txErr").hidden = true; syncForm(); dlg.showModal();
+}
+$("txCancel").onclick = () => dlg.close();
+$("txForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const ty=$("f_type").value, err=$("txErr");
+  const t = {id: editing||uid(), created: editing ? (txs.find(x=>x.id===editing)?.created||Date.now()) : Date.now(),
+    type:ty, date:$("f_date").value, account:$("f_account").value.trim(), ccy:$("f_ccy").value,
+    ticker:$("f_ticker").value.trim().toUpperCase(), name:$("f_name").value.trim(),
+    qty:num($("f_qty").value), price:num($("f_price").value), fee:num($("f_fee").value), amount:num($("f_amount").value),
+    tax:num($("f_tax").value), fx:$("f_ccy").value==="PLN"?1:num($("f_fx").value), toCcy:$("f_toCcy").value, toAmount:num($("f_toAmount").value), note:$("f_note").value.trim()};
+  const msg = !t.date?"Podaj datę." : ["buy","sell"].includes(ty)&&(!t.ticker||!t.qty||!t.price)?"Kupno i sprzedaż wymagają tickera, jednostek i ceny."
+    : ["deposit","withdrawal","fee","dividend","interest"].includes(ty)&&!t.amount?"Podaj kwotę." : ty==="fx"&&(!t.amount||!t.toAmount||t.ccy===t.toCcy)?"Wymiana wymaga dwóch różnych walut i obu kwot." : "";
+  if (msg){ err.textContent=msg; err.hidden=false; return; }
+  if (!t.fx && t.ccy!=="PLN") t.fx = num(settings.fxRates[t.ccy]);
+  try { await store.putTx(t); dlg.close(); toast(editing?"Zapisano zmiany":"Dodano transakcję"); }
+  catch(e2){ err.textContent = "Nie zapisano: "+(e2.message||e2.code)+". Spróbuj ponownie."; err.hidden=false; }
+});
+
+/* ---------- import: CSV / XLS / XLSX / wklejka ---------- */
+const FIELDS = ["date","type","account","ticker","name","ccy","qty","price","fee","amount","tax","fx","toCcy","toAmount","note"];
+const IMP_FIELDS = [
+  ["date","Data",["data","date","czas","time","data transakcji","data operacji","data zlecenia","data realizacji","open time","close time","trade date"]],
+  ["type","Typ / kierunek",["typ","type","kierunek","k/s","strona","side","operacja","rodzaj","rodzaj operacji","transakcja","action"]],
+  ["ticker","Ticker / walor",["ticker","symbol","walor","instrument","papier","kod","isin"]],
+  ["name","Nazwa",["nazwa","name","nazwa waloru","description"]],
+  ["qty","Ilość",["ilosc","liczba","volume","wolumen","quantity","qty","jednostki","szt","liczba sztuk","liczba jednostek"]],
+  ["price","Cena",["cena","kurs","price","open price","cena jednostkowa","kurs transakcji"]],
+  ["fee","Prowizja",["prowizja","oplata","commission","fee","fees"]],
+  ["amount","Kwota",["kwota","wartosc","amount","value","wartosc transakcji","netto","brutto","saldo operacji"]],
+  ["ccy","Waluta",["waluta","currency","ccy","wal"]],
+  ["tax","Podatek",["podatek","tax","withholding","podatek pobrany"]],
+  ["fx","Kurs do PLN",["fx","kurs waluty","kurs pln","kurs przeliczenia","exchange rate"]],
+  ["account","Konto",["konto","rachunek","account"]],
+  ["note","Notatka",["opis","komentarz","comment","note","uwagi","tytul"]]];
+const norm = v => String(v??"").toLowerCase().replace(/ł/g,"l").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9/ ]/g," ").replace(/\s+/g," ").trim();
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)||"null"); } catch(e){ return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+function csvRows(text){
+  const first = text.split(/\r?\n/)[0]||"";
+  const cnt = ch => first.split(ch).length;
+  const sep = cnt("\t")>1 ? "\t" : cnt(";")>cnt(",") ? ";" : ",";
+  const rows=[]; let row=[], cur="", q=false;
+  for (let i=0;i<text.length;i++){ const c=text[i];
+    if (q){ if (c==='"'&&text[i+1]==='"'){cur+='"';i++;} else if (c==='"') q=false; else cur+=c; }
+    else if (c==='"' && cur==="") q=true; else if (c===sep){row.push(cur);cur="";} else if (c==="\n"){row.push(cur);rows.push(row);row=[];cur="";} else if (c!=="\r") cur+=c; }
+  if (cur||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function toCSV(list){
+  const q = v => /[",;\n]/.test(String(v??"")) ? `"${String(v).replace(/"/g,'""')}"` : (v??"");
+  return [FIELDS.join(","), ...list.map(t=>FIELDS.map(f=>q(t[f])).join(","))].join("\n");
+}
+function pnum(v){
+  if (typeof v==="number") return v;
+  let s = String(v??"").replace(/−/g,"-").replace(/[^\d,.\-]/g,""); if (!s) return 0;
+  const c=s.lastIndexOf(","), d=s.lastIndexOf(".");
+  if (c>-1 && d>-1) s = c>d ? s.replace(/\./g,"").replace(",",".") : s.replace(/,/g,"");
+  else if (c>-1) s = s.split(",").length>2 ? s.replace(/,/g,"") : s.replace(",",".");
+  const x=parseFloat(s); return isFinite(x)?x:0;
+}
+function parseDate(v){
+  if (typeof v==="number" && v>20000 && v<80000) return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+  const s=String(v??"").trim(); let m;
+  if ((m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  if ((m=s.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})/))) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return "";
+}
+function normType(v, qty){
+  const s = norm(v);
+  if (!s) return qty<0 ? "sell" : "";
+  if (/^(s|sell|short)$|^sprzed|^zbycie|^sell/.test(s)) return "sell";
+  if (/^(k|b|buy|kup|long)$|^kupno|^zakup|^nabycie|^buy/.test(s)) return "buy";
+  if (/wyplat|withdraw/.test(s)) return "withdrawal";
+  if (/wplat|deposit|zasilen/.test(s)) return "deposit";
+  if (/dywid|divid/.test(s)) return "dividend";
+  if (/odset|interest|kupon/.test(s)) return "interest";
+  if (/oplat|prowiz|fee|commission/.test(s)) return "fee";
+  if (/wymian|exchange|przewalut|^fx$/.test(s)) return "fx";
+  return TYPE_LABEL[s] ? s : "";
+}
+
+let imp = null;
+async function loadXLSX(){
+  if (window.XLSX) return window.XLSX;
+  await new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload=res; sc.onerror=()=>rej(new Error("nie udało się wczytać czytnika Excela")); document.head.appendChild(sc); });
+  return window.XLSX;
+}
+async function readImportFile(file){
+  const info=$("importInfo"); if (info) info.textContent="Czytam plik…";
+  const ext=(file.name.split(".").pop()||"").toLowerCase(), sheets={};
+  if (["xls","xlsx","xlsm","ods"].includes(ext)){
+    const X=await loadXLSX(); const wb=X.read(await file.arrayBuffer(),{type:"array"});
+    for (const n of wb.SheetNames) sheets[n]=X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""});
+  } else sheets[file.name]=csvRows(await file.text());
+  startImport(file.name, sheets);
+}
+function startImport(name, sheets){
+  const names=Object.keys(sheets).filter(n=>sheets[n].length);
+  if (!names.length){ toast("Plik jest pusty"); return; }
+  const sheet=[...names].sort((a,b)=>sheets[b].length-sheets[a].length)[0];
+  imp={name, sheets, sheet, headerRow:guessHeader(sheets[sheet]), map:{}, defaults:{type:"", ccy:"PLN", account:acct||""}};
+  autoMap(); tab="settings"; render();
+}
+function guessHeader(rows){ for (let i=0;i<Math.min(rows.length,30);i++){ if (rows[i].filter(c=>typeof c==="string"&&c.trim()).length>=3) return i; } return 0; }
+function impHeaders(){ const r=imp.sheets[imp.sheet][imp.headerRow]||[]; return r.map((h,i)=>String(h??"").trim()||`Kolumna ${i+1}`); }
+function autoMap(){
+  const key="kp-map:"+impHeaders().join("|"), saved=lsGet(key);
+  if (saved){ imp.map=saved.map||{}; imp.defaults={...imp.defaults, ...saved.defaults}; return; }
+  const hs=impHeaders().map(norm), used=new Set(), map={};
+  for (const pass of [0,1]) for (const [f,,syn] of IMP_FIELDS){
+    if (map[f]!==undefined) continue;
+    const sn=syn.map(norm);
+    const i=hs.findIndex((h,j)=>!used.has(j) && h && (pass===0 ? sn.includes(h) : sn.some(x=>x.length>=3 && h.includes(x))));
+    if (i>-1){ map[f]=i; used.add(i); } }
+  imp.map=map;
+}
+function impBuild(){
+  const m=imp.map, d=imp.defaults, hs=impHeaders().map(norm);
+  const tc=hs.indexOf("toccy"), ta=hs.indexOf("toamount");
+  const cell=(r,f)=> m[f]===undefined ? "" : r[m[f]];
+  const out=[];
+  imp.sheets[imp.sheet].slice(imp.headerRow+1).forEach((r,i)=>{
+    if (!r.some(c=>String(c).trim())) return;
+    const date=parseDate(cell(r,"date"));
+    const qtyRaw=pnum(cell(r,"qty")), amtRaw=pnum(cell(r,"amount"));
+    const type=normType(cell(r,"type"), qtyRaw) || d.type;
+    const ccyCell=String(cell(r,"ccy")||"").toUpperCase().trim();
+    const g=(String(cell(r,"price"))+" "+String(cell(r,"amount"))).match(/\b(PLN|USD|EUR|GBP|CHF)\b/i);
+    const ccy=CCYS.includes(ccyCell)?ccyCell : g?g[1].toUpperCase() : d.ccy;
+    const qty=Math.abs(qtyRaw), amount=Math.abs(amtRaw);
+    let price=Math.abs(pnum(cell(r,"price")));
+    if (["buy","sell"].includes(type) && !price && qty && amount) price=amount/qty;
+    const t={id:uid(), created:Date.now()+i, type, date, account:String(cell(r,"account")||d.account||"").trim(),
+      ticker:String(cell(r,"ticker")||"").trim().toUpperCase(), name:String(cell(r,"name")||"").trim(), ccy,
+      qty, price, fee:Math.abs(pnum(cell(r,"fee"))), amount, tax:Math.abs(pnum(cell(r,"tax"))),
+      fx:pnum(cell(r,"fx"))||(ccy==="PLN"?1:num(settings.fxRates[ccy])),
+      toCcy: tc>-1 ? String(r[tc]||"").toUpperCase().trim() : "", toAmount: ta>-1 ? Math.abs(pnum(r[ta])) : 0,
+      note:String(cell(r,"note")||"").trim()};
+    const err = !date ? "brak daty" : !TYPE_LABEL[type] ? "nieznany typ"
+      : type==="fx" && (!t.toCcy||!t.toAmount||!amount) ? "wymiana bez drugiej waluty"
+      : ["buy","sell"].includes(type) && (!t.ticker||!qty||!price) ? "brak tickera, ilości lub ceny"
+      : !["buy","sell","fx"].includes(type) && !amount ? "brak kwoty" : "";
+    out.push({t, err, row:imp.headerRow+i+2});
+  });
+  return out;
+}
+function impView(){
+  if (!imp) return "";
+  const hs=impHeaders(), built=impBuild(), ok=built.filter(x=>!x.err), bad=built.filter(x=>x.err);
+  const sel=f=>`<select data-map="${f}"><option value="">—</option>${hs.map((h,i)=>`<option value="${i}" ${imp.map[f]===i?"selected":""}>${esc(h)}</option>`).join("")}</select>`;
+  const sheets=Object.keys(imp.sheets);
+  return `<section class="panel" id="impPanel"><div class="panel-h"><h2>Dopasuj kolumny</h2><span class="note">${esc(imp.name)}</span><span class="spacer"></span><button class="btn ghost" data-act="impCancel">Anuluj</button></div>
+    <div class="form">
+      ${sheets.length>1?`<label>Arkusz<select data-imp="sheet">${sheets.map(n=>`<option ${n===imp.sheet?"selected":""}>${esc(n)}</option>`).join("")}</select></label>`:""}
+      <label>Wiersz nagłówka<input data-imp="headerRow" inputmode="numeric" value="${imp.headerRow+1}"></label>
+      <label>Typ, gdy brak w pliku<select data-imp="type"><option value="">—</option>${Object.entries(TYPE_LABEL).filter(([k])=>k!=="fx").map(([k,v])=>`<option value="${k}" ${imp.defaults.type===k?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label>Waluta, gdy brak w pliku<select data-imp="ccy">${CCYS.map(c=>`<option ${imp.defaults.ccy===c?"selected":""}>${c}</option>`).join("")}</select></label>
+      <label>Konto, gdy brak w pliku<input data-imp="account" list="acctList" value="${esc(imp.defaults.account)}" placeholder="np. mBank"></label>
+    </div>
+    <div class="form">${IMP_FIELDS.map(([f,l])=>`<label>${l}${sel(f)}</label>`).join("")}</div>
+    <p class="note">Gotowe do importu: <b class="num">${ok.length}</b>${bad.length?` · pominę <b class="num">${bad.length}</b> (${esc([...new Set(bad.map(b=>b.err))].join(", "))})`:""}. Kierunek rozpoznaję z kolumny typu (Kupno, K, Buy, Sprzedaż, S, Sell, Dywidenda…) albo ze znaku ilości.</p>
+    <div class="tbl-wrap">${txTable(ok.slice(0,8).map(x=>x.t),false)}</div>
+    ${bad.length?`<details><summary class="note">Pominięte wiersze</summary><p class="note">${esc(bad.slice(0,40).map(b=>`wiersz ${b.row}: ${b.err}`).join("; "))}</p></details>`:""}
+    <div class="row"><button class="btn primary" data-act="impGo" ${ok.length?"":"disabled"}>Importuj ${ok.length} transakcji</button></div></section>`;
+}
+async function impGo(){
+  const ok=impBuild().filter(x=>!x.err).map(x=>x.t);
+  lsSet("kp-map:"+impHeaders().join("|"), {map:imp.map, defaults:{type:imp.defaults.type, ccy:imp.defaults.ccy, account:imp.defaults.account}});
+  imp=null; await putMany(ok); tab="txs"; render(); toast(`Zaimportowano ${ok.length} transakcji`);
+}
+async function putMany(list){
+  if (store===Local){ txs.push(...list); lsSave(); render(); return; }
+  for (let i=0;i<list.length;i+=8) await Promise.all(list.slice(i,i+8).map(t=>store.putTx(t)));
+}
+async function doExport(){
+  const csv = toCSV([...txs].sort((a,b)=>a.date.localeCompare(b.date)));
+  const inArtifact = !!(window.claude && window.claude.use);
+  if (inArtifact){
+    const dl = await window.claude.use("downloads");
+    if (dl){ try { await dl.save({filename:`portfel-${today()}.csv`, data:new Blob([csv],{type:"text/csv"})}); return; } catch(e){} }
+  } else {
+    try { const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`portfel-${today()}.csv`; document.body.appendChild(a); a.click(); a.remove(); toast("Pobrano CSV"); return; } catch(e){}
+  }
+  $("csvText").value = csv; toast("CSV jest w polu tekstowym, skopiuj je");
+}
+
+/* ---------- demo ---------- */
+function demoTxs(){
+  const A="Przykład (mBank)", B="Przykład (IBKR)";
+  const L=[
+    ["2024-01-05","deposit",A,"","","PLN",0,0,0,20000],["2024-01-08","buy",A,"PKO","PKO BP","PLN",120,58.4,19],
+    ["2024-01-08","buy",A,"KGH","KGHM","PLN",40,148.2,19],["2024-01-10","buy",A,"ETFBW20TR","Beta ETF WIG20TR","PLN",60,118.5,19],
+    ["2024-02-01","deposit",B,"","","PLN",15000,0,0,15000],["2024-02-02","fx",B,"","","PLN",0,0,0,14000,0,1,"USD",3500],
+    ["2024-02-05","buy",B,"VWRA","Vanguard FTSE All-World","USD",25,112.3,3,0,0,4.0],["2024-02-05","buy",B,"AAPL","Apple","USD",5,188.0,1,0,0,4.0],
+    ["2024-07-15","dividend",A,"PKO","","PLN",0,0,0,660,125.4],["2025-03-03","deposit",A,"","","PLN",0,0,0,6000],
+    ["2025-03-04","buy",A,"ETFBW20TR","","PLN",40,135.0,10],["2025-06-02","sell",A,"KGH","","PLN",15,162.0,10]];
+  return L.map((r,i)=>({id:uid(),created:Date.now()+i,date:r[0],type:r[1],account:r[2],ticker:r[3],name:r[4],ccy:r[5],qty:r[6],price:r[7],fee:r[8],amount:r[9]||0,tax:r[10]||0,fx:r[11]||(r[5]==="PLN"?1:4.0),toCcy:r[12]||"",toAmount:r[13]||0,note:"przykład"}));
+}
+async function loadDemo(){
+  const ex = {PKO:{price:63.1,date:today()},KGH:{price:171.4,date:today()},ETFBW20TR:{price:142.8,date:today()},VWRA:{price:139.6,date:today()},AAPL:{price:231.0,date:today()}};
+  for (const [k,v] of Object.entries(ex)) if (!settings.prices[k]) settings.prices[k]=v;
+  if (!Object.keys(settings.targets).length) settings.targets = {VWRA:35,ETFBW20TR:25,PKO:15,KGH:10,AAPL:10,CASH:5};
+  store.saveSettings(); await putMany(demoTxs()); tab="overview"; render(); toast("Wczytano przykładowy portfel");
+}
+
+/* ---------- events ---------- */
+let toastT; function toast(m){ let el=document.querySelector(".toast"); if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);} el.textContent=m; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,2600); }
+document.querySelector("nav.tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b){tab=b.dataset.tab; render();} });
+$("acctFilter").addEventListener("change", e=>{ acct=e.target.value; render(); });
+$("addTxBtn").onclick = ()=>{ if(store) openTx(); };
+let wipeArmed=false;
+app.addEventListener("click", async e=>{
+  if (!store){ toast("Chwila, łączę się z zapisem danych"); return; }
+  const go = e.target.closest("[data-tab-go]"); if (go){ tab=go.dataset.tabGo; render(); return; }
+  const ed = e.target.closest("[data-edit]"); if (ed){ openTx(txs.find(t=>t.id===ed.dataset.edit)); return; }
+  const del = e.target.closest("[data-del]");
+  if (del){ if (del.dataset.armed){ await store.delTx(del.dataset.del); toast("Usunięto transakcję"); } else { del.dataset.armed=1; del.textContent="Na pewno?"; } return; }
+  const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return;
+  if (act==="add") openTx();
+  if (act==="demo") loadDemo();
+  if (act==="goimport"){ tab="settings"; render(); }
+  if (act==="pasteImport"){ const tx=$("csvText").value; if(!tx.trim()){ toast("Wklej najpierw dane"); return; } startImport("wklejone dane", {"wklejone dane": csvRows(tx.trim())}); }
+  if (act==="impCancel"){ imp=null; render(); }
+  if (act==="impGo") impGo();
+  if (act==="export") doExport();
+  if (act==="addTarget"){ const k=$("newTarget").value.trim().toUpperCase(); if(k){ settings.targets[k]=settings.targets[k]||0; store.saveSettings(); render(); } }
+  if (act==="wipe"){ if(!wipeArmed){ wipeArmed=true; $("wipeConfirm").textContent="Kliknij jeszcze raz, żeby usunąć "+txs.length+" transakcji."; return; }
+    wipeArmed=false; const ids=txs.map(t=>t.id); if(store===Local){txs=[];lsSave();render();} else { for(let i=0;i<ids.length;i+=8) await Promise.all(ids.slice(i,i+8).map(id=>store.delTx(id))); } toast("Usunięto wszystkie transakcje"); }
+});
+app.addEventListener("change", e=>{
+  if (!store) return;
+  const el=e.target;
+  if (el.id==="impFile" && el.files[0]){ readImportFile(el.files[0]).catch(err=>toast("Nie udało się odczytać pliku: "+(err.message||err))); return; }
+  if (el.dataset.map!==undefined && imp){ imp.map[el.dataset.map] = el.value==="" ? undefined : +el.value; render(); return; }
+  if (el.dataset.imp && imp){ const k=el.dataset.imp;
+    if (k==="sheet"){ imp.sheet=el.value; imp.headerRow=guessHeader(imp.sheets[imp.sheet]); autoMap(); }
+    else if (k==="headerRow"){ imp.headerRow=Math.max(0,(parseInt(el.value,10)||1)-1); autoMap(); }
+    else imp.defaults[k]=el.value;
+    render(); return; }
+  if (el.dataset.price!==undefined){ const v=num(el.value); if(v>0) settings.prices[el.dataset.price]={price:v,date:today()}; else delete settings.prices[el.dataset.price]; store.saveSettings(); render(); }
+  if (el.dataset.target!==undefined){ const v=num(el.value); if(v>0) settings.targets[el.dataset.target]=v; else delete settings.targets[el.dataset.target]; store.saveSettings(); render(); }
+  if (el.dataset.fxrate){ const v=num(el.value); if(v>0){ settings.fxRates[el.dataset.fxrate]=v; store.saveSettings(); toast("Zapisano kurs "+el.dataset.fxrate); } }
+  if (el.id==="bandIn"){ settings.band=Math.max(0.5,num(el.value)||5); store.saveSettings(); render(); }
+});
+app.addEventListener("input", e=>{ if(e.target.id==="txSearch"){ txQuery=e.target.value; const pos=e.target.selectionStart; render(); const s=$("txSearch"); s.focus(); s.setSelectionRange(pos,pos);} });
+app.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.classList.contains("cell-in")) e.target.blur(); });
+
+/* ---------- boot ---------- */
+render();
+connectDb().then(api => {
+  if (api){ store = api; } else { store = Local; lsLoad(); document.getElementById("storeInfo").textContent = Local.name; }
+  render();
+}).catch(() => { store = Local; lsLoad(); document.getElementById("storeInfo").textContent = Local.name; render(); });
+})();
+</script>
+
+</body>
+</html>
